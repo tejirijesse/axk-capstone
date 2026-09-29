@@ -1,0 +1,190 @@
+{
+ "doctype": "DocType",
+ "name": "Harvest Record",
+ "module": "AXK Network",
+ "custom": 0,
+ "istable": 0,
+ "issingle": 0,
+ "track_changes": 1,
+ "autoname": "field:harvest_id",
+ "naming_rule": "By fieldname",
+ "title_field": "harvest_id",
+ "search_fields": "farmer_name,commodity,cooperative",
+ "sort_field": "harvest_date",
+ "sort_order": "DESC",
+ "fields": [
+  {
+   "fieldname": "harvest_id",
+   "fieldtype": "Data",
+   "label": "Harvest ID",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cooperative",
+   "fieldtype": "Link",
+   "label": "Cooperative",
+   "reqd": 1,
+   "unique": 0,
+   "in_list_view": 1,
+   "options": "Cooperative"
+  },
+  {
+   "fieldname": "farmer_name",
+   "fieldtype": "Data",
+   "label": "Farmer Name",
+   "reqd": 1,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "farmer_member_no",
+   "fieldtype": "Data",
+   "label": "Member No",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "farmer_gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0,
+   "options": "\nF\nM"
+  },
+  {
+   "fieldname": "commodity",
+   "fieldtype": "Data",
+   "label": "Commodity",
+   "reqd": 1,
+   "unique": 0,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "variety",
+   "fieldtype": "Data",
+   "label": "Variety",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "season",
+   "fieldtype": "Data",
+   "label": "Season",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "harvest_date",
+   "fieldtype": "Date",
+   "label": "Harvest Date",
+   "reqd": 1,
+   "unique": 0,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "plot_size_ha",
+   "fieldtype": "Float",
+   "label": "Plot Size (ha)",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "quantity_kg",
+   "fieldtype": "Float",
+   "label": "Quantity (kg)",
+   "reqd": 1,
+   "unique": 0,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "moisture_pct_at_intake",
+   "fieldtype": "Float",
+   "label": "Moisture % at Intake",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "intake_date",
+   "fieldtype": "Date",
+   "label": "Intake Date",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "storage_location",
+   "fieldtype": "Data",
+   "label": "Storage Location",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "recorded_by",
+   "fieldtype": "Data",
+   "label": "Recorded By",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "record_source",
+   "fieldtype": "Select",
+   "label": "Record Source",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0,
+   "options": "\nAXK mobile app\nUSSD entry\nPaper ledger (digitised)"
+  },
+  {
+   "fieldname": "content_hash",
+   "fieldtype": "Data",
+   "label": "Content Hash (SHA-256)",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0,
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes",
+   "reqd": 0,
+   "unique": 0,
+   "in_list_view": 0
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "report": 1
+  },
+  {
+   "role": "AXK Cooperative Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "export": 1,
+   "report": 1
+  },
+  {
+   "role": "AXK Verifier",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "engine": "InnoDB"
+}

@@ -1,0 +1,74 @@
+{
+  "seed": 20260929,
+  "window": "2021-09-01 \u2192 2026-09-28",
+  "counts": {
+    "Cooperative": 42,
+    "Harvest Record": 3400,
+    "Lot": 646,
+    "Verification Event": 5258,
+    "AXK Order": 549,
+    "Escrow Contract": 176
+  },
+  "lots_by_year": {
+    "2021": 13,
+    "2022": 55,
+    "2023": 104,
+    "2024": 145,
+    "2025": 174,
+    "2026": 155
+  },
+  "orders_by_year": {
+    "2021": 9,
+    "2022": 47,
+    "2023": 88,
+    "2024": 135,
+    "2025": 156,
+    "2026": 114
+  },
+  "escrows_by_year": {
+    "2024": 26,
+    "2025": 72,
+    "2026": 78
+  },
+  "events_by_year": {
+    "2021": 88,
+    "2022": 455,
+    "2023": 834,
+    "2024": 1244,
+    "2025": 1490,
+    "2026": 1147
+  },
+  "order_status": {
+    "Cancelled": 12,
+    "Confirmed": 2,
+    "Delivered": 37,
+    "Disputed": 30,
+    "In Transit": 1,
+    "Settled": 467
+  },
+  "escrow_status": {
+    "Created": 1,
+    "Disputed": 7,
+    "Refunded": 9,
+    "Release Pending": 16,
+    "Released": 143
+  },
+  "settlement_channel_share": {
+    "AXK escrow (Stellar USDC, testnet)": 10,
+    "AXK escrow (XAH)": 168,
+    "Airtel Money": 40,
+    "Bank transfer (SWIFT/USD)": 60,
+    "Cash on delivery": 108,
+    "MTN MoMo": 135,
+    "PAPSS": 28
+  },
+  "mean_completion_hours": {
+    "AXK escrow": 92.2,
+    "non-escrow": 229.1,
+    "baseline_recall": 447.0
+  },
+  "total_settled_usd": 2489089.03,
+  "anchored_lots": 403,
+  "anchored_events": 3307,
+  "hash_chain_verified_lots": 646
+}
