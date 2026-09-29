@@ -1,0 +1,113 @@
+{% extends "templates/web.html" %}
+
+{% block title %}AXK Chain Explorer{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="/assets/axk_capstone/css/chain.css?v={{ css_v }}">
+{% endblock %}
+
+{% block page_content %}
+<div class="viz-root" id="axk-chain">
+  <header class="cx-head">
+    <div>
+      <h1>AXK Chain Explorer</h1>
+      <p class="cx-sub">Verification and settlement for cross-border agricultural trade, read from the ledger.</p>
+    </div>
+    <div class="cx-sources">
+      <span class="cx-pill cx-pill-live"><span class="cx-dot" aria-hidden="true"></span>Live · Stellar testnet</span>
+      <span class="cx-pill cx-pill-synth">Synthetic history · demo data</span>
+    </div>
+  </header>
+
+  <!-- 1. Live testnet -->
+  <section class="cx-section" aria-labelledby="live-h">
+    <div class="cx-section-head">
+      <h2 id="live-h">Settlement on Stellar testnet</h2>
+      <p>Real Soroban contract events for the capstone's RWF test token. Every row links to the transaction on Stellar Expert.</p>
+    </div>
+    <div class="cx-tiles" id="live-tiles"></div>
+    <div class="cx-card">
+      <div class="cx-card-head">
+        <h3>Where the money went</h3>
+        <p>Buyer → escrow contract → cooperative → members. Ribbon width is RWF moved.</p>
+      </div>
+      <div id="live-flow" class="cx-chart" role="img" aria-label="Flow of RWF from buyer through escrow to cooperative and members"></div>
+    </div>
+    <div class="cx-card">
+      <div class="cx-card-head">
+        <h3>Contract events</h3>
+        <p id="live-meta"></p>
+      </div>
+      <div class="cx-table-wrap"><table class="cx-table" id="live-table"></table></div>
+    </div>
+  </section>
+
+  <!-- 2. Hash chain explorer -->
+  <section class="cx-section" aria-labelledby="chain-h">
+    <div class="cx-section-head">
+      <h2 id="chain-h">Hash-chain explorer <span class="cx-tag">synthetic lot</span></h2>
+      <p>Every verification event commits to the one before it: <code>event_hash = SHA-256(prev_hash + payload + evidence_hash)</code>.
+        Your browser recomputes each hash. Tamper with one event and every link after it breaks.</p>
+    </div>
+    <div class="cx-controls">
+      <label for="lot-picker">Lot</label>
+      <select id="lot-picker"></select>
+      <button type="button" id="btn-verify" class="cx-btn">Verify chain</button>
+      <button type="button" id="btn-tamper" class="cx-btn cx-btn-ghost">Tamper with an event</button>
+      <button type="button" id="btn-reset" class="cx-btn cx-btn-ghost" hidden>Reset</button>
+    </div>
+    <div class="cx-card">
+      <div id="chain-summary" class="cx-chain-summary" aria-live="polite"></div>
+      <ol id="chain-list" class="cx-chain"></ol>
+    </div>
+  </section>
+
+  <!-- 3. Synthetic history -->
+  <section class="cx-section" aria-labelledby="hist-h">
+    <div class="cx-section-head">
+      <h2 id="hist-h">Five-year ledger history <span class="cx-tag">synthetic</span></h2>
+      <p>Generated seed data (Sep 2021 – Sep 2026) that populates the demo. It illustrates what the system records;
+        it is not evidence from the pilot and no finding is drawn from it.</p>
+    </div>
+    <div class="cx-tiles" id="hist-tiles"></div>
+    <div class="cx-grid">
+      <div class="cx-card cx-span-2">
+        <div class="cx-card-head">
+          <h3>Verification events per month</h3>
+          <p>Anchoring switched on in June 2024; before that, events were hash-chained but kept off-chain.</p>
+        </div>
+        <div id="chart-monthly" class="cx-chart"></div>
+        <button type="button" class="cx-link" data-table="chart-monthly">Show table</button>
+      </div>
+      <div class="cx-card">
+        <div class="cx-card-head">
+          <h3>Mean hours to settle</h3>
+          <p>Settled orders only.</p>
+        </div>
+        <div id="chart-completion" class="cx-chart"></div>
+        <button type="button" class="cx-link" data-table="chart-completion">Show table</button>
+      </div>
+      <div class="cx-card">
+        <div class="cx-card-head">
+          <h3>Escrow lifecycle</h3>
+          <p>Contract states and how many escrows ended in each.</p>
+        </div>
+        <div id="chart-escrow" class="cx-chart"></div>
+      </div>
+      <div class="cx-card cx-span-2">
+        <div class="cx-card-head">
+          <h3>How settled orders were paid</h3>
+          <p>Share of settled orders by settlement channel, per year.</p>
+        </div>
+        <div id="chart-share" class="cx-chart"></div>
+        <button type="button" class="cx-link" data-table="chart-share">Show table</button>
+      </div>
+    </div>
+  </section>
+  <div id="cx-tooltip" class="cx-tooltip" role="status" hidden></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="/assets/axk_capstone/js/chain.js?v={{ js_v }}"></script>
+{% endblock %}

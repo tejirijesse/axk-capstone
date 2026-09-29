@@ -270,6 +270,30 @@ def _derive(dt, row, doc, coops):
         doc["release_mode"] = "Single Release"
 
 
+def _store_canonical_payloads(path):
+    """Keep the exact bytes each event_hash was computed over.
+
+    event_hash = sha256(prev_hash + canonical_payload + evidence_hash). The payload has to be
+    stored verbatim: rebuilding it from DocType fields fails for ~4% of events, because Float
+    columns round values such as 16.099999999999998 and turn blanks into 0.
+    """
+    import json
+
+    create_custom_fields({"Verification Event": [{
+        "fieldname": "canonical_payload", "label": "Canonical Payload (hashed)",
+        "fieldtype": "Long Text", "read_only": 1, "insert_after": "event_hash"}]}, update=True)
+    with open(os.path.join(path, "verification_event.json"), encoding="utf-8") as f:
+        events = json.load(f)
+    for j in events:
+        payload = {"lot": j["lot"], "seq": j["sequence_no"], "type": j["event_type"], "ts": j["timestamp"],
+                   "org": j["verifier_org"], "loc": j["location"], "qty": j["quantity_kg_measured"],
+                   "moist": j["moisture_pct"], "grade": j["grade_assigned"], "result": j["result"]}
+        canon = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        frappe.db.sql("update `tabVerification Event` set canonical_payload=%s where name=%s",
+                      (canon, j["event_id"]))
+    frappe.db.commit()
+
+
 def purge():
     for dt, *_ in reversed(ORDER):
         if frappe.db.has_column(dt, SYNTH):
@@ -332,6 +356,8 @@ def run(path, dry_run=False, purge=False, only=None, limit=None):
             if i % 500 == 0:
                 frappe.db.commit()
         frappe.db.commit()
+        if dt == "Verification Event":
+            _store_canonical_payloads(path)
         print(f"{dt}: {inserted} inserted, {failed} failed, {len(rows)} in file")
         report[dt] = {"inserted": inserted, "failed": failed}
     return report
