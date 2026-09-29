@@ -7,6 +7,12 @@
 #        LOT=AXK-KGL-COFFEE-0002 scripts/demo.sh
 set -euo pipefail
 
+# rustup from Homebrew is keg-only; make cargo findable without a shell restart
+export PATH="/opt/homebrew/opt/rustup/bin:$HOME/.cargo/bin:$PATH"
+for tool in cargo stellar; do
+  command -v "$tool" >/dev/null || { echo "missing $tool — see README 'Setup'"; exit 1; }
+done
+
 NET=testnet
 LOT="${LOT:-AXK-KGL-COFFEE-$(date +%Y%m%d%H%M%S)}"
 AMOUNT=2500000000000          # 250,000 RWF (token has 7 decimals)
