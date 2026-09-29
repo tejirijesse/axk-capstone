@@ -11,3 +11,4 @@ target/
 # upstream clones used for extraction (not part of submission)
 source/
 *.wallet*.json
+scripts/.demo-state.env
