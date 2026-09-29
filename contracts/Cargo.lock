@@ -167,6 +167,14 @@ dependencies = [
 name = "axk-escrow"
 version = "0.1.0"
 dependencies = [
+ "axk-lot-registry",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "axk-lot-registry"
+version = "0.1.0"
+dependencies = [
  "soroban-sdk",
 ]
 

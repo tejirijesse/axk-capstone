@@ -17,9 +17,9 @@ Pilot scope: Kigali cooperatives trading on the Rwanda–DRC / Rwanda–Uganda c
 ```
  Web app (Coop · Buyer · Inspector)        Stellar testnet (Soroban)
  ─────────────────────────────────         ──────────────────────────────
-  list lot ───────────────────────────────▶ (lot registry — in progress)
-  inspect & sign ─────────────────────────▶ (lot registry — in progress)
-  fund escrow ────────────────────────────▶ Escrow        Funded
+  register lot ───────────────────────────▶ Lot registry  Registered
+  inspect & sign ─────────────────────────▶ Lot registry  Approved / Rejected
+  fund escrow ──── only if Approved ──────▶ Escrow        Funded (payee = lot's cooperative)
   confirm delivery → verifier releases ───▶ Escrow        Released ──▶ Splitter
   attest settled trade ───────────────────▶ Attestation   write-once digest
   dashboard ◀──────────────── contract events / RPC reads
@@ -27,11 +27,12 @@ Pilot scope: Kigali cooperatives trading on the Rwanda–DRC / Rwanda–Uganda c
 
 | Component | Path | Status |
 |---|---|---|
-| Escrow contract | `contracts/escrow` | Done · 19 tests · on testnet |
+| Lot / inspection registry | `contracts/lot_registry` | Done · 18 tests · on testnet |
+| Escrow contract (inspection-gated) | `contracts/escrow` | Done · 27 tests · on testnet |
 | Payment splitter | `contracts/splitter` | Done · 12 tests · on testnet |
 | Attestation registry | `contracts/attestation` | Done · 8 tests · on testnet |
-| Lot / inspection registry | `contracts/lot_registry` | In progress |
-| Web app (3 roles + chain dashboard) | `frontend/` | In progress |
+| Chain explorer (live testnet flow, hash-chain verifier, history) | `frappe_app/axk_capstone` → `/chain` | Done |
+| Role screens (Coop · Inspector · Buyer) | `frappe_app/axk_capstone` | In progress |
 | System schematic & state diagrams | `docs/design/` | In progress |
 
 Contract design notes and the security rationale for each guarantee are in [contracts/README.md](contracts/README.md). Testnet contract IDs and what was exercised on-chain are in [docs/deployments.md](docs/deployments.md).
@@ -60,7 +61,7 @@ git clone https://github.com/tejirijesse/axk-capstone.git
 cd axk-capstone/contracts
 
 # test and build
-cargo test                 # 39 tests
+cargo test                 # 65 tests
 stellar contract build     # wasm output in target/wasm32v1-none/release/
 ```
 
@@ -68,8 +69,8 @@ stellar contract build     # wasm output in target/wasm32v1-none/release/
 
 ```bash
 stellar keys generate dev --network testnet --fund
-stellar contract deploy --wasm target/wasm32v1-none/release/axk_escrow.wasm \
-  --source dev --network testnet -- --verifier $(stellar keys address dev)
+# or run the whole verified trade end to end (deploys fresh contracts):
+../scripts/demo.sh
 ```
 
 ## Designs

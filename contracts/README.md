@@ -1,25 +1,55 @@
 # Contracts
 
-Soroban contracts for holding, splitting and attesting a settled trade. Written in Rust, building to wasm, covered by 39 tests.
+Soroban contracts for verifying a commodity lot and then holding, splitting and attesting payment for it. Written in Rust, building to wasm, covered by 65 tests.
 
 **Deployed to testnet, and nowhere else.** They pass their tests, compile to wasm, and have been exercised on-chain — see [../docs/deployments.md](../docs/deployments.md) for IDs and what was actually run. They have not been audited. Do not put value near them yet.
 
 ```bash
-cargo test                                        # 39 tests
+cargo test                                        # 65 tests
 cargo build --release --target wasm32-unknown-unknown
 ```
 
-## Escrow
+## Lot registry
 
-Holds a buyer's payment against one trade until delivery is verified.
+Records that a lot exists and that an authorised inspector examined it. This is the verification half of the trade, and the escrow will not take money for a lot that has not passed through it.
 
 ```
-__constructor(verifier)
-create(trade_id, buyer, destination, token, amount, deadline)   // buyer + verifier
+__constructor(admin)
+add_inspector(inspector) / remove_inspector(inspector)          // admin only
+lot_id(cooperative, lot_ref) -> BytesN<32>
+register_lot(cooperative, lot_ref, digest) -> lot_id             // cooperative signs, write-once
+inspect(lot_id, inspector, passed, grade, quantity_kg, report_digest)   // authorised inspector, once
+get(lot_id) / get_inspection(lot_id)
+approved_cooperative(lot_id) -> Option<Address>                  // what the escrow asks
+matches(lot_id, digest) -> bool
+```
+
+**The lot id is bound to the cooperative.** It is `sha256(cooperative ‖ lot_ref)`, not the bare reference. If a stranger could register a real lot's reference under their own address first and get it inspected by mistake, the buyer would pay the stranger. With the address folded in, the same reference from a stranger is a different lot. `the_lot_id_is_bound_to_the_cooperative`.
+
+**Only digests go on-chain.** The cooperative commits to a hash of the lot record (commodity, grade, weight, origin, harvest records); the inspector commits to a hash of their report. A buyer or lender shown either document hashes it and checks `matches`, without the ledger carrying personal or commercial data.
+
+**Inspection is write-once.** A failed lot stays failed. Re-inspecting until someone passes it is exactly what an inspection record has to make visible, not allow. A cooperative that fixes a rejected lot registers it again under a new reference, and the rejection remains on the ledger. `a_lot_is_inspected_once`.
+
+**A cooperative cannot inspect its own lot**, even if it also holds an inspector licence. Separation of duties is enforced by the contract, not by policy. `a_cooperative_cannot_inspect_its_own_lot`.
+
+**Removing an inspector stops future inspections and leaves past ones standing.** They were valid when signed; rewriting them would be rewriting history. `a_removed_inspector_cannot_inspect_again`.
+
+## Escrow
+
+Holds a buyer's payment for one inspected lot until delivery is verified.
+
+```
+__constructor(verifier, registry)
+create(trade_id, lot_id, buyer, token, amount, deadline)        // buyer + verifier; lot must be approved
 release(trade_id)     // verifier only
 refund(trade_id)      // after the deadline, by anyone
 get(trade_id)
+lot_trade(lot_id) -> Option<trade_id>
 ```
+
+**Money only moves for an inspected lot, and only to the cooperative that owns it.** `create` asks the lot registry `approved_cooperative(lot_id)`. An unregistered, uninspected or rejected lot is refused with `LotNotApproved` before any signature is checked or any token moves. There is no destination parameter: the payee is whoever registered the inspected lot, so neither the buyer nor AXK can name a different one. `an_uninspected_lot_cannot_be_funded`, `a_rejected_lot_cannot_be_funded`, `the_payee_is_the_cooperative_that_registered_the_lot`.
+
+**A lot backs one live escrow at a time.** A second escrow for a lot that is funded or already sold is refused with `LotInEscrow`, so the same inspected lot cannot be sold to two buyers. A refund frees the lot. `a_lot_cannot_back_two_live_escrows`, `a_sold_lot_cannot_be_sold_again`, `a_refund_frees_the_lot_for_another_buyer`.
 
 **The destination is fixed at creation and `release` takes no address.** That is the guarantee the contract exists for. A compromised verifier can stall a release or let the deadline run out, but has no parameter through which to send the money somewhere else. `there_is_no_way_to_name_a_destination_at_release` exists to fail if anyone ever adds one.
 
@@ -30,6 +60,8 @@ get(trade_id)
 **Creating a trade takes the verifier's signature as well as the buyer's.** `trade_id` is caller-supplied and can only be occupied once, so with the buyer's signature alone anyone could fund a one-stroop trade under a real trade's id, block it permanently, and take their stroop back at the deadline.
 
 **The verifier is set in the deploy transaction.** A separate `init` call left a window in which a stranger could claim the role on a freshly deployed instance and then refuse to release anything on it.
+
+**The registry is fixed in the deploy transaction**, alongside the verifier, so nobody can later point an escrow at a registry that approves everything.
 
 The state machine is `Funded → Released` or `Funded → Refunded`, and nothing else. Releasing twice, refunding a released trade, and releasing a refunded one are each tested and each refused.
 

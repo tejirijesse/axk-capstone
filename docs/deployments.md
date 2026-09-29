@@ -1,5 +1,45 @@
 # Deployments
 
+## Capstone testnet deployment (29 September 2026)
+
+Deployed by `scripts/demo.sh` with `stellar-cli 28.0.0`. Each run deploys a fresh set; these are from the
+run that exercised the inspection-gated flow. The latest IDs are always in `scripts/.demo-state.env`.
+
+| Contract | ID |
+|---|---|
+| Lot registry | `CA2STYORR2OUWD3I5AT7X5ECD7ZDQWI5B4YUQDIIXWORDEGH3ZWANFQ6` |
+| Escrow (inspection-gated) | `CCAJENWOAQEEUOMEOBRUGBFWBRUNUAE424DUE7RDPFYNK4LPEOCC5E2P` |
+| Splitter | `CAU6RIFFOLYJA54IJCEKBDYSPLPGNRUNYGO76H4KZTNNQYX7W2QUQYZT` |
+| Attestation registry | `CAEC6KYYAI5KIH6I44AGG447L5277NUPZMMV57GFK72CKOBLV2BJIUZV` |
+| RWF test token (SAC) | `CDDUVE7DTM77ETPECHPVWIGPL2CBZ4WJNSG5REN36X6GEBZMIRE3XQG7` |
+
+Roles: registry admin, escrow verifier, splitter coordinator and attester are one testnet account
+(`GAH6…LAJMP`); the inspector (`GCPK…3AHJ`) and cooperative (`GAKR…734ZSN`) are separate accounts, which is
+what the separation-of-duties checks need.
+
+### What was exercised on-chain
+
+| Check | Result |
+|---|---|
+| Cooperative registers lot `AXK-HUYE-COFFEE-LOT-0101` | lot_id bound to the cooperative, status `Registered` |
+| Buyer funds before inspection | `Error(Contract, #10)` — `LotNotApproved`; no RWF moved |
+| Cooperative inspects its own lot | `Error(Contract, #3)` — `NotAnInspector` |
+| Inspector approves: grade A, 3,850 kg | [tx](https://stellar.expert/explorer/testnet/tx/231ed00a97a2f31c8d07f1952c677d0aeab2b3dbfc886ae6b1c5450bf68ca59c) |
+| Buyer + verifier fund escrow; payee read from the registry | [tx](https://stellar.expert/explorer/testnet/tx/dbce793772b67d79c6b0bc60c087b60fae29018a25b21745210d6c0740cb9d01), destination = the lot's cooperative |
+| Stranger releases | refused, needs the verifier |
+| Verifier releases | [tx](https://stellar.expert/explorer/testnet/tx/7a5033f56258d2b07811ec15ab8181a99f357a4ee91ca87f6854cb3b8f29787e) |
+| Split 40/40/20 and distribute | [tx](https://stellar.expert/explorer/testnet/tx/10b962c650555e51e667313c4ac2c65ef05a886bf479894b923c4676f910f91f) |
+| Attest settled trade; `matches` real / tampered | [tx](https://stellar.expert/explorer/testnet/tx/2562d242f08fb4af513974c587934f414dee7fd946360627ba649dceaf72b323); `true` / `false` |
+| Second escrow on the sold lot | `Error(Contract, #11)` — `LotInEscrow` |
+| Re-inspect the approved lot | `Error(Contract, #4)` — `AlreadyInspected` |
+
+Two-party funding (buyer and verifier signing one transaction) ran on-chain here, which the upstream deployment
+below lists as covered only by unit tests.
+
+---
+
+## Upstream AXK deployment (August 2026)
+
 ## Testnet
 
 Deployed 16 August 2026 with `stellar-cli 27.1.0`, built from the workspace at

@@ -24,6 +24,14 @@ const TRADE_TTL_EXTEND: u32 = DAY_LEDGERS * 180;
 /// that could outlive its own record and strand the money it guards.
 const MAX_TERM_SECONDS: u64 = 150 * 86_400;
 
+/// The one question escrow asks the lot registry: who gets paid for this lot, if it passed
+/// inspection. Declared as an interface rather than importing the registry crate, so the two
+/// contracts deploy and upgrade independently.
+#[soroban_sdk::contractclient(name = "RegistryClient")]
+pub trait Registry {
+    fn approved_cooperative(env: Env, lot_id: BytesN<32>) -> Option<Address>;
+}
+
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
@@ -36,6 +44,8 @@ pub enum Error {
     DeadlineInPast = 7,
     AmountNotPositive = 8,
     DeadlineTooFar = 9,
+    LotNotApproved = 10,
+    LotInEscrow = 11,
 }
 
 #[contracttype]
@@ -49,6 +59,7 @@ pub enum Status {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Trade {
+    pub lot_id: BytesN<32>,
     pub buyer: Address,
     pub destination: Address,
     pub token: Address,
@@ -61,7 +72,10 @@ pub struct Trade {
 #[derive(Clone)]
 enum Key {
     Verifier,
+    Registry,
     Trade(BytesN<32>),
+    /// The trade a lot currently backs. Cleared on refund, kept on release (the lot is sold).
+    LotTrade(BytesN<32>),
 }
 
 #[contract]
@@ -70,9 +84,18 @@ pub struct Escrow;
 #[contractimpl]
 impl Escrow {
     /// Runs inside the deploy transaction, so there is no window in which a
-    /// stranger can claim the verifier role on a freshly deployed instance.
-    pub fn __constructor(env: Env, verifier: Address) {
+    /// stranger can claim the verifier role, or point the escrow at a different
+    /// lot registry, on a freshly deployed instance.
+    pub fn __constructor(env: Env, verifier: Address, registry: Address) {
         env.storage().instance().set(&Key::Verifier, &verifier);
+        env.storage().instance().set(&Key::Registry, &registry);
+    }
+
+    pub fn registry(env: Env) -> Result<Address, Error> {
+        env.storage()
+            .instance()
+            .get(&Key::Registry)
+            .ok_or(Error::NotInitialised)
     }
 
     pub fn verifier(env: Env) -> Result<Address, Error> {
@@ -89,11 +112,19 @@ impl Escrow {
     /// trade id can only be occupied once. Without the second signature anyone
     /// could fund a one-stroop trade under the id of a real one and block it,
     /// then take their stroop back at the deadline.
+    ///
+    /// The lot must have passed inspection in the lot registry, and the money is
+    /// paid to the cooperative that registered it. There is no destination
+    /// parameter: the buyer pays for inspected goods, and the only party who can
+    /// receive that payment is the one the goods belong to.
+    ///
+    /// A lot backs one live escrow at a time, so the same inspected lot cannot be
+    /// sold to two buyers. A refund frees it again.
     pub fn create(
         env: Env,
         trade_id: BytesN<32>,
+        lot_id: BytesN<32>,
         buyer: Address,
-        destination: Address,
         token_id: Address,
         amount: i128,
         deadline: u64,
@@ -108,10 +139,17 @@ impl Escrow {
         if deadline - now > MAX_TERM_SECONDS {
             return Err(Error::DeadlineTooFar);
         }
-        let key = Key::Trade(trade_id);
+        let key = Key::Trade(trade_id.clone());
         if env.storage().persistent().has(&key) {
             return Err(Error::TradeExists);
         }
+        let lot_key = Key::LotTrade(lot_id.clone());
+        if env.storage().persistent().has(&lot_key) {
+            return Err(Error::LotInEscrow);
+        }
+        let destination = RegistryClient::new(&env, &Self::registry(env.clone())?)
+            .approved_cooperative(&lot_id)
+            .ok_or(Error::LotNotApproved)?;
         buyer.require_auth();
         Self::verifier(env.clone())?.require_auth();
 
@@ -121,6 +159,7 @@ impl Escrow {
         env.storage().persistent().set(
             &key,
             &Trade {
+                lot_id: lot_id.clone(),
                 buyer: buyer.clone(),
                 destination,
                 token: token_id.clone(),
@@ -132,6 +171,10 @@ impl Escrow {
         env.storage()
             .persistent()
             .extend_ttl(&key, TRADE_TTL_THRESHOLD, TRADE_TTL_EXTEND);
+        env.storage().persistent().set(&lot_key, &trade_id);
+        env.storage()
+            .persistent()
+            .extend_ttl(&lot_key, TRADE_TTL_THRESHOLD, TRADE_TTL_EXTEND);
 
         token::Client::new(&env, &token_id).transfer(
             &buyer,
@@ -190,6 +233,7 @@ impl Escrow {
 
         trade.status = Status::Refunded;
         env.storage().persistent().set(&key, &trade);
+        env.storage().persistent().remove(&Key::LotTrade(trade.lot_id.clone()));
         env.storage()
             .persistent()
             .extend_ttl(&key, TRADE_TTL_THRESHOLD, TRADE_TTL_EXTEND);
@@ -200,6 +244,11 @@ impl Escrow {
             &trade.amount,
         );
         Ok(())
+    }
+
+    /// The trade this lot is backing, if any. None once a refund frees the lot.
+    pub fn lot_trade(env: Env, lot_id: BytesN<32>) -> Option<BytesN<32>> {
+        env.storage().persistent().get(&Key::LotTrade(lot_id))
     }
 
     pub fn get(env: Env, trade_id: BytesN<32>) -> Result<Trade, Error> {

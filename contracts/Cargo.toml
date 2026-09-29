@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["escrow", "splitter", "attestation"]
+members = ["lot_registry", "escrow", "splitter", "attestation"]
 
 [workspace.package]
 version = "0.1.0"
