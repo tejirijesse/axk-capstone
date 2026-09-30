@@ -1,0 +1,11 @@
+<nav class="xt-nav" aria-label="AXK Trade">
+  <div class="xt-nav-inner">
+    <a class="xt-brand" href="/trade"><span class="xt-brand-mark" aria-hidden="true">AX</span><span>AXK Trade</span></a>
+    <div class="xt-tabs" role="list">
+      {% for key, href, label in axk_nav %}
+      <a class="xt-tab" role="listitem" href="{{ href }}" data-tab="{{ key }}" {% if key == axk_active %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </div>
+    <span class="xt-net" title="Transactions are signed on Stellar {{ axk_network }}"><i aria-hidden="true"></i>Stellar {{ axk_network }}{% if axk_demo %} · demo{% endif %}</span>
+  </div>
+</nav>

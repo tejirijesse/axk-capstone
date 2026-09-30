@@ -12,3 +12,5 @@ target/
 source/
 *.wallet*.json
 scripts/.demo-state.env
+__pycache__/
+*.pyc

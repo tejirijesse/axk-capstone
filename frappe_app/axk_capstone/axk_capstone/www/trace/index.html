@@ -1,0 +1,45 @@
+{% macro pill(s) -%}
+{%- set m = {"Registered":["registered","○","Awaiting inspection"],"Approved":["approved","✓","Inspected · passed"],"Rejected":["rejected","✕","Inspected · rejected"],"Funded":["funded","◷","In escrow"],"Settled":["settled","●","Settled"],"Refunded":["refunded","↩","Refunded"]} -%}
+{%- set v = m.get(s, ["registered","○",s]) -%}
+<span class="xt-pill {{ v[0] }}"><span aria-hidden="true">{{ v[1] }}</span>{{ v[2] }}</span>
+{%- endmacro %}
+{% extends "templates/web.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block style %}<link rel="stylesheet" href="/assets/axk_capstone/css/axk.css?v={{ css_v }}">{% endblock %}
+{% block page_content %}
+<div class="xt-app">
+  {% include "templates/includes/axk_nav.html" %}
+  <main class="xt-main">
+    <div class="xt-head"><div>
+      <h1>Verify a lot</h1>
+      <p>Paste a lot reference, on-chain lot id, record digest or Stellar transaction hash. No account needed.</p>
+    </div></div>
+    <form class="xt-card xt-search" method="get" action="/trace" role="search">
+      <label class="xt-sr" for="q">Lot reference, lot id, digest or transaction hash</label>
+      <input class="xt-input" id="q" name="q" value="{{ q }}" placeholder="e.g. AXK-LIVE-CP-20260930-0001" autocomplete="off" autofocus>
+      <button class="xt-btn" type="submit">Verify</button>
+    </form>
+    {% if q %}
+    <div class="xt-card">
+      {% if results %}
+      <h2>{{ results|length }} matches</h2>
+      <div class="xt-table-wrap"><table class="xt-table"><tbody>
+        {% for r in results %}<tr><td><a href="/trace/lot?ref={{ r.lot_ref|urlencode }}">{{ r.lot_ref }}</a></td><td>{{ r.commodity }}</td><td>{{ r.cooperative_name }}</td><td>{{ pill(r.status) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}
+      <div class="xt-empty">Nothing matches “{{ q }}”. Check the reference, or paste the full 64-character hash.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="xt-card">
+      <div class="xt-card-head"><div><h2>Recently active lots</h2><p>Live lots on Stellar testnet.</p></div></div>
+      {% if recent %}
+      <div class="xt-table-wrap"><table class="xt-table"><thead><tr><th>Lot</th><th>Commodity</th><th>Cooperative</th><th>Status</th></tr></thead><tbody>
+        {% for r in recent %}<tr><td><a href="/trace/lot?ref={{ r.lot_ref|urlencode }}">{{ r.lot_ref }}</a></td><td>{{ r.commodity }}</td><td>{{ r.cooperative_name }}</td><td>{{ pill(r.status) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}<div class="xt-empty">No live lots yet.</div>{% endif %}
+    </div>
+    <p class="xt-privacy">What this page shows: statuses, commodity, grade, weight, district-level origin, the cooperative's registered name, Stellar account addresses, record digests and transaction hashes. What it never shows: inspector or buyer names, notes, or anything about individual farmers.</p>
+  </main>
+</div>
+{% endblock %}

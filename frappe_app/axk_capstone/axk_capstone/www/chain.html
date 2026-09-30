@@ -3,11 +3,13 @@
 {% block title %}AXK Chain Explorer{% endblock %}
 
 {% block style %}
-<link rel="stylesheet" href="/assets/axk_capstone/css/chain.css?v={{ css_v }}">
+<link rel="stylesheet" href="/assets/axk_capstone/css/axk.css?v={{ css_v }}">
+<link rel="stylesheet" href="/assets/axk_capstone/css/chain.css?v={{ chain_css_v }}">
 {% endblock %}
 
 {% block page_content %}
-<div class="viz-root" id="axk-chain">
+<div class="xt-app">{% include "templates/includes/axk_nav.html" %}</div>
+<div class="viz-root" id="xt-chain">
   <header class="cx-head">
     <div>
       <h1>AXK Chain Explorer</h1>
@@ -109,5 +111,5 @@
 {% endblock %}
 
 {% block script %}
-<script src="/assets/axk_capstone/js/chain.js?v={{ js_v }}"></script>
+<script src="/assets/axk_capstone/js/chain.js?v={{ chain_js_v }}"></script>
 {% endblock %}

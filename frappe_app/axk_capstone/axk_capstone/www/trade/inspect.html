@@ -1,0 +1,24 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block style %}
+<link rel="stylesheet" href="/assets/axk_capstone/css/axk.css?v={{ css_v }}">
+{% endblock %}
+
+{% block page_content %}
+<div class="xt-app" id="xt-trade" data-page="inspect">
+  {% include "templates/includes/axk_nav.html" %}
+  <main class="xt-main" id="xt-main" tabindex="-1">
+    <div class="xt-skeleton" aria-busy="true" aria-label="Loading"><div class="xt-skel xt-skel-title"></div><div class="xt-skel xt-skel-line"></div><div class="xt-skel-row"><div class="xt-skel xt-skel-tile"></div><div class="xt-skel xt-skel-tile"></div><div class="xt-skel xt-skel-tile"></div></div><div class="xt-skel xt-skel-card"></div></div>
+  </main>
+  <div class="xt-busy" id="xt-busy" hidden role="alertdialog" aria-modal="true" aria-labelledby="xt-busy-title">
+    <div class="xt-busy-card"><div class="xt-spinner" aria-hidden="true"></div><b id="xt-busy-title">Signing on Stellar</b><p id="xt-busy-text"></p></div>
+  </div>
+  <div class="xt-toast" id="xt-toast" hidden role="status" aria-live="polite"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="/assets/axk_capstone/js/trade.js?v={{ js_v }}"></script>
+{% endblock %}

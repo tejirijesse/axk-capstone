@@ -1,0 +1,355 @@
+{
+ "doctype": "DocType",
+ "name": "AXK Chain Trade",
+ "module": "AXK Capstone",
+ "custom": 0,
+ "istable": 0,
+ "issingle": 0,
+ "autoname": "field:lot_ref",
+ "naming_rule": "By fieldname",
+ "title_field": "lot_ref",
+ "track_changes": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "sec_lot",
+   "fieldtype": "Section Break",
+   "label": "Lot"
+  },
+  {
+   "fieldname": "lot_ref",
+   "fieldtype": "Data",
+   "label": "Lot reference",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Registered\nApproved\nRejected\nFunded\nSettled\nRefunded",
+   "default": "Registered",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "commodity",
+   "fieldtype": "Data",
+   "label": "Commodity",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "variety",
+   "fieldtype": "Data",
+   "label": "Variety"
+  },
+  {
+   "fieldname": "declared_grade",
+   "fieldtype": "Data",
+   "label": "Declared grade"
+  },
+  {
+   "fieldname": "col_lot",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "quantity_kg",
+   "fieldtype": "Float",
+   "label": "Declared quantity (kg)"
+  },
+  {
+   "fieldname": "origin",
+   "fieldtype": "Data",
+   "label": "Origin"
+  },
+  {
+   "fieldname": "harvest_date",
+   "fieldtype": "Date",
+   "label": "Harvest date"
+  },
+  {
+   "fieldname": "cooperative_name",
+   "fieldtype": "Data",
+   "label": "Cooperative",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cooperative_account",
+   "fieldtype": "Data",
+   "label": "Cooperative account"
+  },
+  {
+   "fieldname": "sec_reg",
+   "fieldtype": "Section Break",
+   "label": "Registration on-chain"
+  },
+  {
+   "fieldname": "lot_record",
+   "fieldtype": "Long Text",
+   "label": "Lot record (canonical JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lot_digest",
+   "fieldtype": "Data",
+   "label": "Lot digest (sha256)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chain_lot_id",
+   "fieldtype": "Data",
+   "label": "On-chain lot id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "register_tx",
+   "fieldtype": "Data",
+   "label": "Register tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "registered_at",
+   "fieldtype": "Datetime",
+   "label": "Registered at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_insp",
+   "fieldtype": "Section Break",
+   "label": "Inspection"
+  },
+  {
+   "fieldname": "inspector_name",
+   "fieldtype": "Data",
+   "label": "Inspector",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inspector_account",
+   "fieldtype": "Data",
+   "label": "Inspector account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "passed",
+   "fieldtype": "Check",
+   "label": "Passed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inspected_grade",
+   "fieldtype": "Data",
+   "label": "Inspected grade",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_insp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "inspected_quantity_kg",
+   "fieldtype": "Float",
+   "label": "Measured quantity (kg)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "moisture_pct",
+   "fieldtype": "Float",
+   "label": "Moisture (%)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inspection_notes",
+   "fieldtype": "Small Text",
+   "label": "Inspection notes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reject_reason",
+   "fieldtype": "Data",
+   "label": "Rejection reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "report_record",
+   "fieldtype": "Long Text",
+   "label": "Inspection report (canonical JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "report_digest",
+   "fieldtype": "Data",
+   "label": "Report digest (sha256)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inspect_tx",
+   "fieldtype": "Data",
+   "label": "Inspect tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inspected_at",
+   "fieldtype": "Datetime",
+   "label": "Inspected at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_escrow",
+   "fieldtype": "Section Break",
+   "label": "Escrow"
+  },
+  {
+   "fieldname": "buyer_name",
+   "fieldtype": "Data",
+   "label": "Buyer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyer_account",
+   "fieldtype": "Data",
+   "label": "Buyer account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_rwf",
+   "fieldtype": "Float",
+   "label": "Amount (RWF)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trade_id",
+   "fieldtype": "Data",
+   "label": "Trade id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_escrow",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fund_tx",
+   "fieldtype": "Data",
+   "label": "Fund tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "funded_at",
+   "fieldtype": "Datetime",
+   "label": "Funded at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "deadline",
+   "fieldtype": "Datetime",
+   "label": "Refund deadline",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_settle",
+   "fieldtype": "Section Break",
+   "label": "Settlement"
+  },
+  {
+   "fieldname": "release_tx",
+   "fieldtype": "Data",
+   "label": "Release tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "split_tx",
+   "fieldtype": "Data",
+   "label": "Split configured tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "distribute_tx",
+   "fieldtype": "Data",
+   "label": "Distribute tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_settle",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "settlement_record",
+   "fieldtype": "Long Text",
+   "label": "Settlement record (canonical JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attest_digest",
+   "fieldtype": "Data",
+   "label": "Attestation digest",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attest_tx",
+   "fieldtype": "Data",
+   "label": "Attest tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "settled_at",
+   "fieldtype": "Datetime",
+   "label": "Settled at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_contracts",
+   "fieldtype": "Section Break",
+   "label": "Contracts"
+  },
+  {
+   "fieldname": "registry",
+   "fieldtype": "Data",
+   "label": "Lot registry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "escrow",
+   "fieldtype": "Data",
+   "label": "Escrow",
+   "read_only": 1
+  },
+  {
+   "fieldname": "splitter",
+   "fieldtype": "Data",
+   "label": "Splitter",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attestation",
+   "fieldtype": "Data",
+   "label": "Attestation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Data",
+   "label": "Token",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_error",
+   "fieldtype": "Small Text",
+   "label": "Last error",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ]
+}

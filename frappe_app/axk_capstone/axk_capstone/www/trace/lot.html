@@ -1,0 +1,69 @@
+{% macro pill(s) -%}
+{%- set m = {"Registered":["registered","○","Awaiting inspection"],"Approved":["approved","✓","Inspected · passed"],"Rejected":["rejected","✕","Inspected · rejected"],"Funded":["funded","◷","In escrow"],"Settled":["settled","●","Settled"],"Refunded":["refunded","↩","Refunded"]} -%}
+{%- set v = m.get(s, ["registered","○",s]) -%}
+<span class="xt-pill {{ v[0] }}"><span aria-hidden="true">{{ v[1] }}</span>{{ v[2] }}</span>
+{%- endmacro %}
+{% extends "templates/web.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block style %}<link rel="stylesheet" href="/assets/axk_capstone/css/axk.css?v={{ css_v }}">{% endblock %}
+{% block page_content %}
+<div class="xt-app">
+  {% include "templates/includes/axk_nav.html" %}
+  <main class="xt-main">
+    <div class="xt-crumb"><a href="/trace">Verify</a> / Lot</div>
+    {% if not lot %}
+    <div class="xt-card"><div class="xt-empty">No lot with that reference. <a href="/trace">Search again</a>.</div></div>
+    {% else %}
+    <div class="xt-head">
+      <div><h1>{{ lot.lot_ref }}</h1><p>{{ lot.commodity }} · {{ lot.origin }} · {{ lot.cooperative_name }}</p></div>
+      {{ pill(lot.status) }}
+    </div>
+    <div class="xt-verdict {{ 'ok' if lot.passed else ('bad' if lot.inspect_tx else '') }}">
+      {% if lot.passed %}✓ An authorised inspector passed this lot on-chain{% if lot.attest_tx %}, and its settlement is attested{% endif %}.
+      {% elif lot.inspect_tx %}✕ This lot was rejected at inspection{% if lot.reject_reason %}: {{ lot.reject_reason }}{% endif %}. It cannot be sold through AXK escrow.
+      {% else %}○ Registered by the cooperative; not yet inspected. It cannot be sold through AXK escrow until it passes.{% endif %}
+    </div>
+    <div class="xt-grid-2">
+      <div>
+        <div class="xt-card"><div class="xt-card-head"><h2>Chain of custody</h2></div>
+          <ol class="xt-steps">
+          {% for s in lot.steps %}
+            {% set failed = loop.index0 == 1 and lot.inspect_tx and not lot.passed %}
+            <li class="xt-step {{ ('failed' if failed else 'done') if s.tx else '' }}">
+              <div class="xt-step-dot" aria-hidden="true">{{ ('✕' if failed else '✓') if s.tx else loop.index }}</div>
+              <div class="xt-step-body"><b>{{ s.label }}</b>
+                {% if s.tx %}<div><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.tx[:10] }}…{{ s.tx[-6:] }} ↗</a>{% if s.at %} · {{ frappe.utils.format_datetime(s.at, "d MMM yyyy HH:mm") }}{% endif %}</div>
+                {% else %}<div>Not yet</div>{% endif %}
+              </div>
+            </li>
+          {% endfor %}
+          </ol>
+        </div>
+      </div>
+      <div>
+        <div class="xt-card"><div class="xt-card-head"><h2>Lot</h2></div>
+          <dl class="xt-kv">
+            <dt>Declared</dt><dd>Grade {{ lot.declared_grade }} · {{ "{:,.0f}".format(lot.quantity_kg or 0) }} kg</dd>
+            <dt>Inspected</dt><dd>{% if lot.inspect_tx %}Grade {{ lot.inspected_grade }} · {{ "{:,.0f}".format(lot.inspected_quantity_kg or 0) }} kg{% if lot.moisture_pct %} · {{ lot.moisture_pct }}% moisture{% endif %}{% else %}Not yet{% endif %}</dd>
+            <dt>On-chain lot id</dt><dd class="xt-mono">{{ lot.chain_lot_id }}</dd>
+            <dt>Lot record sha256</dt><dd class="xt-mono">{{ lot.lot_digest }}</dd>
+            {% if lot.report_digest %}<dt>Inspection report sha256</dt><dd class="xt-mono">{{ lot.report_digest }}</dd>{% endif %}
+            {% if lot.attest_digest %}<dt>Settlement sha256</dt><dd class="xt-mono">{{ lot.attest_digest }}</dd>{% endif %}
+          </dl>
+        </div>
+        <div class="xt-card"><div class="xt-card-head"><h2>Accounts and contracts</h2></div>
+          <dl class="xt-kv">
+            <dt>Cooperative</dt><dd><a class="xt-mono" href="{{ lot.explorer }}/account/{{ lot.cooperative_account }}" target="_blank" rel="noopener">{{ lot.cooperative_account[:6] }}…{{ lot.cooperative_account[-4:] }} ↗</a></dd>
+            {% if lot.inspector_account %}<dt>Inspector</dt><dd><a class="xt-mono" href="{{ lot.explorer }}/account/{{ lot.inspector_account }}" target="_blank" rel="noopener">{{ lot.inspector_account[:6] }}…{{ lot.inspector_account[-4:] }} ↗</a></dd>{% endif %}
+            {% if lot.buyer_account %}<dt>Buyer</dt><dd><a class="xt-mono" href="{{ lot.explorer }}/account/{{ lot.buyer_account }}" target="_blank" rel="noopener">{{ lot.buyer_account[:6] }}…{{ lot.buyer_account[-4:] }} ↗</a></dd>{% endif %}
+            {% for k in ["registry", "escrow", "attestation"] %}{% if lot[k] %}<dt>{{ k|capitalize }}</dt><dd><a class="xt-mono" href="{{ lot.explorer }}/contract/{{ lot[k] }}" target="_blank" rel="noopener">{{ lot[k][:8] }}…{{ lot[k][-6:] }} ↗</a></dd>{% endif %}{% endfor %}
+          </dl>
+        </div>
+        <div class="xt-card xt-qr"><div>{{ qr|safe }}</div><div><h3>Share or print</h3><p>This QR opens this page. Anyone holding the lot's paperwork can scan it and see the same on-chain evidence, without an account.</p><p class="xt-mono" style="margin-top:6px;overflow-wrap:anywhere">{{ share_url }}</p></div></div>
+      </div>
+    </div>
+    <p class="xt-privacy">Public by design: statuses, digests, Stellar accounts and transaction hashes. Never public: inspector or buyer names, notes, or anything about individual farmers. To check a document you hold, hash its canonical JSON with SHA-256 and compare it with the digest above.</p>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
