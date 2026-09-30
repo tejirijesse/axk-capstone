@@ -113,7 +113,8 @@ def lot(name):
     data.update({
         "chain_lot_id": d.chain_lot_id, "lot_digest": d.lot_digest, "lot_record": d.lot_record,
         "report_digest": d.report_digest, "report_record": d.report_record, "inspection_notes": d.inspection_notes,
-        "reject_reason": d.reject_reason, "trade_id": d.trade_id, "attest_digest": d.attest_digest, "settlement_record": d.settlement_record,
+        "reject_reason": d.reject_reason, "trade_id": d.trade_id, "attest_digest": d.attest_digest,
+        "inspect_tx": d.inspect_tx, "attest_tx": d.attest_tx, "settlement_record": d.settlement_record,
         "cooperative_account": d.cooperative_account, "inspector_account": d.inspector_account,
         "buyer_account": d.buyer_account, "deadline": _iso(d.deadline), "last_error": d.last_error,
         "contracts": {k: d.get(k) for k in ("registry", "escrow", "splitter", "attestation", "token")},

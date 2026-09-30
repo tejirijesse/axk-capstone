@@ -32,7 +32,7 @@
             <li class="xt-step {{ ('failed' if failed else 'done') if s.tx else '' }}">
               <div class="xt-step-dot" aria-hidden="true">{{ ('✕' if failed else '✓') if s.tx else loop.index }}</div>
               <div class="xt-step-body"><b>{{ s.label }}</b>
-                {% if s.tx %}<div><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.tx[:10] }}…{{ s.tx[-6:] }} ↗</a>{% if s.at %} · {{ frappe.utils.format_datetime(s.at, "d MMM yyyy HH:mm") }}{% endif %}</div>
+                {% if s.tx %}<div><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.tx[:10] }}…{{ s.tx[-6:] }} ↗</a>{% if s.at %} · {{ frappe.utils.format_datetime(s.at, "d MMM yyyy HH:mm") }} Kigali{% endif %}</div>
                 {% else %}<div>Not yet</div>{% endif %}
               </div>
             </li>

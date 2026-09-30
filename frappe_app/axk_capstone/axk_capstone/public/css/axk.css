@@ -260,3 +260,6 @@
 .xt-skel-tile { height: 78px; border-radius: var(--radius); }
 .xt-skel-card { height: 260px; border-radius: var(--radius); }
 .xt-avatar.xt-skel { background-color: var(--surface-2); }
+
+/* cards laid out by a grid get their spacing from the grid gap, not the stacking margin */
+.xt-grid-3 > .xt-card + .xt-card, .xt-grid-2b > .xt-card + .xt-card, .xt-grid-2 > .xt-card + .xt-card { margin-top: 0; }
