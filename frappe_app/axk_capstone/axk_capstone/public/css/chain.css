@@ -151,3 +151,9 @@
 .cx-hit:focus { outline: none; }
 .cx-hit:focus .cx-mark { stroke: var(--text-primary); stroke-width: 1.5; }
 .cx-empty { font-size: 13px; color: var(--text-muted); padding: 24px 0; text-align: center; }
+.cx-verif-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
+.cx-vs b { color: var(--text-primary); font-weight: 650; }
+.cx-vs.good b { color: var(--good-text); }
+.cx-vs.bad b { color: var(--critical-text); }
+.cx-vs-link { margin-left: auto; color: var(--brand); font-weight: 550; text-decoration: none; }
+.cx-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }

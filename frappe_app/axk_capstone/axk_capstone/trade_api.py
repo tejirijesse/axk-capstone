@@ -8,7 +8,9 @@ accepts a request from the network.
 """
 
 import frappe
-from frappe.utils import cint, flt, getdate, nowdate
+from zoneinfo import ZoneInfo
+
+from frappe.utils import cint, flt, get_datetime, get_system_timezone, getdate, nowdate
 
 from axk_capstone import chain
 
@@ -38,6 +40,14 @@ def _fail(doc, e):
     frappe.throw(str(e), title="Stellar transaction refused")
 
 
+def _iso(dt):
+    """Frappe stores naive datetimes in the system time zone; send them with their offset so
+    the browser shows the same instant as the chain explorer, whatever its own zone is."""
+    if not dt:
+        return ""
+    return get_datetime(dt).replace(tzinfo=ZoneInfo(get_system_timezone())).isoformat()
+
+
 def _row(d):
     return {
         "name": d.name, "lot_ref": d.lot_ref, "status": d.status, "commodity": d.commodity,
@@ -47,10 +57,10 @@ def _row(d):
         "moisture_pct": d.moisture_pct, "passed": d.passed, "inspector_name": d.inspector_name,
         "buyer_name": d.buyer_name, "amount_rwf": d.amount_rwf,
         "price_rwf": round((d.inspected_quantity_kg or d.quantity_kg or 0) * PRICE_RWF_PER_KG.get(d.commodity, 500)),
-        "registered_at": str(d.registered_at or ""), "inspected_at": str(d.inspected_at or ""),
-        "funded_at": str(d.funded_at or ""), "settled_at": str(d.settled_at or ""),
+        "registered_at": _iso(d.registered_at), "inspected_at": _iso(d.inspected_at),
+        "funded_at": _iso(d.funded_at), "settled_at": _iso(d.settled_at),
         "reject_reason": d.reject_reason,
-        "modified": str(d.modified),
+        "modified": _iso(d.modified),
     }
 
 
@@ -105,10 +115,10 @@ def lot(name):
         "report_digest": d.report_digest, "report_record": d.report_record, "inspection_notes": d.inspection_notes,
         "reject_reason": d.reject_reason, "trade_id": d.trade_id, "attest_digest": d.attest_digest, "settlement_record": d.settlement_record,
         "cooperative_account": d.cooperative_account, "inspector_account": d.inspector_account,
-        "buyer_account": d.buyer_account, "deadline": str(d.deadline or ""), "last_error": d.last_error,
+        "buyer_account": d.buyer_account, "deadline": _iso(d.deadline), "last_error": d.last_error,
         "contracts": {k: d.get(k) for k in ("registry", "escrow", "splitter", "attestation", "token")},
         "explorer": chain.EXPLORER,
-        "steps": [{"label": l, "tx": t, "url": chain.tx_url(t), "at": str(a or "")} for l, t, a in steps],
+        "steps": [{"label": l, "tx": t, "url": chain.tx_url(t), "at": _iso(a)} for l, t, a in steps],
     })
     return data
 

@@ -27,7 +27,7 @@ DEFAULT_LABELS = {
     "GCL5ZO2WVQWYL4YQKDJXEBNELQGLWME5B3LNHKXXOSRPZMONSXYQD4RV": ("member1", "Member 1"),
     "GCLEO73Z3CPY7TP6V3XRVBR2J7JNJNYLOPVOOMR5OVAPN7XVGDSJYVCA": ("member2", "Member 2"),
     "GAH6RUPCSQP3Z6JCAG2UYORY4C63NBSQAOAYQR6O4I2JBD2XVDPLAJMP": ("verifier", "Verifier"),
-    "GCPK3GOPZSI4JTA6ZCSQSN4WR3VUDPRV2K7GERFWTZEESHCJFYSH3AHJ": ("inspector", "Inspector"),
+    "GCPK3GOPZSI4JTA6ZCSQSN4WR3VUDPRV2K7GERFWTZEESHCJFYSH3AHJ": ("inspector", "Authorised inspector"),
     "GC6C2LMTFAFPSSZFX62MA6AW5O7AAW3UKOWNTAZCLK75MTEQDBDQZKRH": ("issuer", "RWF issuer"),
 }
 DEFAULT_TOKEN = "CDDUVE7DTM77ETPECHPVWIGPL2CBZ4WJNSG5REN36X6GEBZMIRE3XQG7"
@@ -69,19 +69,10 @@ def _classify(kind, frm, to):
     return "Transfer"
 
 
-def fetch():
-    cached = frappe.cache().get_value(CACHE_KEY)
-    if cached:
-        return cached
-
-    token, labels = _config()
-    server = SorobanServer(RPC_URL)
-    health = server.get_health()
-    start = max(health.oldest_ledger, health.latest_ledger - LOOKBACK_LEDGERS)
-    flt = [EventFilter(event_type=EventFilterType.CONTRACT, contract_ids=[token])]
-
-    # Each request scans a bounded ledger range and may come back empty with a cursor that
-    # has moved forward, so keep paging until the cursor stops advancing.
+def _events(server, contract_id, start):
+    """All events for one contract since `start`. Each request scans a bounded ledger range
+    and may come back empty with a cursor that has moved on, so page until it stops."""
+    flt = [EventFilter(event_type=EventFilterType.CONTRACT, contract_ids=[contract_id])]
     events, cursor = [], None
     for _ in range(MAX_PAGES):
         if cursor:
@@ -92,6 +83,42 @@ def fetch():
         if not page.cursor or page.cursor == cursor:
             break
         cursor = page.cursor
+    return events
+
+
+def _verifications(server, registry, start, labels):
+    """Lot registrations and inspections from the lot registry, joined to lot references."""
+    rows = []
+    known = {r.chain_lot_id: r.lot_ref for r in frappe.get_all(
+        "AXK Chain Trade", fields=["chain_lot_id", "lot_ref"]) if r.chain_lot_id}
+    for e in _events(server, registry, start):
+        topic = [str(scval.to_native(t)) for t in e.topic]
+        if topic[:1] != ["lot"] or len(topic) < 2:
+            continue
+        value = scval.to_native(e.value)
+        lot_id = value[0].hex() if isinstance(value[0], (bytes, bytearray)) else str(value[0])
+        actor = _party(value[1], labels)
+        kind = {"register": "Lot registered", "inspect": "Lot inspected"}.get(topic[1], topic[1])
+        passed = bool(value[2]) if topic[1] == "inspect" and len(value) > 2 else None
+        rows.append({
+            "ledger": e.ledger, "time": e.ledger_close_at.isoformat(), "tx": e.transaction_hash,
+            "tx_url": f"{EXPLORER}/tx/{e.transaction_hash}", "kind": kind, "passed": passed,
+            "lot_id": lot_id, "lot_ref": known.get(lot_id), "actor": actor,
+        })
+    return rows
+
+
+def fetch():
+    cached = frappe.cache().get_value(CACHE_KEY)
+    if cached:
+        return cached
+
+    token, labels = _config()
+    server = SorobanServer(RPC_URL)
+    health = server.get_health()
+    start = max(health.oldest_ledger, health.latest_ledger - LOOKBACK_LEDGERS)
+
+    events = _events(server, token, start)
 
     rows = []
     for e in events:
@@ -120,8 +147,14 @@ def fetch():
             "amount": amount,
         })
 
+    registry = (frappe.conf.get("axk_stellar") or {}).get("registry")
+    verifications = _verifications(server, registry, start, labels) if registry else []
+
     result = {
         "network": "Stellar testnet",
+        "registry": registry,
+        "registry_url": f"{EXPLORER}/contract/{registry}" if registry else None,
+        "verifications": verifications,
         "rpc": RPC_URL,
         "token": token,
         "token_url": f"{EXPLORER}/contract/{token}",

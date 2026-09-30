@@ -6,7 +6,7 @@
   const API = "/api/method/axk_capstone.api.";
   const SVG = "http://www.w3.org/2000/svg";
   const ZERO = "0".repeat(64);
-  const root = document.getElementById("axk-chain");
+  const root = document.getElementById("xt-chain");
   if (!root) return;
 
   const state = { live: null, overview: null, lot: null, tampered: null, tamperNote: "", tables: {} };
@@ -144,6 +144,33 @@
       el("tbody", {}, rows));
 
     renderFlow(flowBox, ev, funded, released);
+    renderVerifications(d);
+  }
+
+  function renderVerifications(d) {
+    const rows = d.verifications || [];
+    const table = document.getElementById("verif-table");
+    const summary = document.getElementById("verif-summary");
+    const reg = rows.filter((r) => r.kind === "Lot registered").length;
+    const passed = rows.filter((r) => r.passed === true).length;
+    const failed = rows.filter((r) => r.passed === false).length;
+    const waiting = Math.max(0, reg - passed - failed);
+    summary.replaceChildren(
+      el("span", { class: "cx-vs" }, el("b", { text: nf.format(reg) }), " registered"),
+      el("span", { class: "cx-vs good" }, el("b", { text: "✓ " + nf.format(passed) }), " passed"),
+      el("span", { class: "cx-vs bad" }, el("b", { text: "✕ " + nf.format(failed) }), " rejected"),
+      el("span", { class: "cx-vs" }, el("b", { text: "○ " + nf.format(waiting) }), " awaiting inspection"),
+      d.registry_url ? el("a", { href: d.registry_url, target: "_blank", rel: "noopener", class: "cx-vs-link", text: "Lot registry contract ↗" }) : null);
+    if (!rows.length) { table.replaceChildren(); summary.append(el("div", { class: "cx-empty", text: "No lot registry activity in the RPC window yet." })); return; }
+    table.replaceChildren(
+      el("thead", {}, el("tr", {}, ["Time", "Event", "Lot", "Signed by", "Result", "Transaction"].map((h) => el("th", { text: h })))),
+      el("tbody", {}, rows.slice().reverse().map((r) => el("tr", {},
+        el("td", { text: new Date(r.time).toLocaleString() }),
+        el("td", { text: r.kind }),
+        el("td", {}, r.lot_ref ? el("a", { href: "/trace/lot?ref=" + encodeURIComponent(r.lot_ref), text: r.lot_ref }) : el("span", { class: "cx-mono", text: short(r.lot_id, 8) })),
+        el("td", { text: r.actor.name }),
+        el("td", {}, r.passed === null ? "" : el("span", { class: r.passed ? "cx-result pass" : "cx-result fail", text: r.passed ? "✓ passed" : "✕ rejected" })),
+        el("td", {}, el("a", { href: r.tx_url, target: "_blank", rel: "noopener", text: short(r.tx, 8) }))))));
   }
 
   function renderFlow(box, ev, funded, released) {
