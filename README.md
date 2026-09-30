@@ -17,6 +17,48 @@ the money to its members, and writes a tamper-evident record anyone can check.
 
 ---
 
+## How it works
+
+One trade, top to bottom. In each step a person acts (grey), the Frappe app signs the transaction
+(purple), and a Soroban contract on Stellar testnet enforces the rule (green).
+
+```mermaid
+flowchart TB
+  classDef person fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A
+  classDef app fill:#EEEDFE,stroke:#534AB7,color:#26215C
+  classDef chain fill:#E1F5EE,stroke:#0F6E56,color:#04342C
+
+  subgraph S1["1 · Register"]
+    direction LR
+    P1["Cooperative<br/>/trade/coop"]:::person --> A1["Frappe: register lot<br/>hashes the record"]:::app --> C1["Lot registry<br/>lot registered"]:::chain
+  end
+  subgraph S2["2 · Inspect"]
+    direction LR
+    P2["Inspector<br/>/trade/inspect"]:::person --> A2["Frappe: sign inspection<br/>pass or reject"]:::app --> C2["Lot registry<br/>lot approved"]:::chain
+  end
+  subgraph S3["3 · Pay"]
+    direction LR
+    P3["Buyer<br/>/trade/buy"]:::person --> A3["Frappe: pay into escrow<br/>buyer + verifier sign"]:::app --> C3["Escrow<br/>asks registry: passed? owner?"]:::chain
+  end
+  subgraph S4["4 · Settle"]
+    direction LR
+    P4["Buyer<br/>confirms delivery"]:::person --> A4["Frappe: settle<br/>4 transactions"]:::app --> C4["Escrow + splitter<br/>pay co-op and members"]:::chain
+  end
+  subgraph S5["5 · Verify"]
+    direction LR
+    P5["Anyone<br/>/trace · /chain"]:::person --> A5["Frappe: read-only pages<br/>no login"]:::app --> C5["Attestation + events<br/>settled record"]:::chain
+  end
+  S1 ~~~ S2 ~~~ S3 ~~~ S4 ~~~ S5
+```
+
+1. **Register.** The cooperative commits a SHA-256 digest of the lot record; only the digest goes on-chain.
+2. **Inspect.** An authorised inspector, never the lot's owner, signs one pass or reject. It cannot be changed.
+3. **Pay.** Escrow asks the lot registry whether the lot passed and who owns it. No pass, no payment; the owner becomes the only possible payee.
+4. **Settle.** Confirming delivery releases escrow, records the 40/40/20 split, pays the members and attests the trade.
+5. **Verify.** Anyone can read the lot's chain of custody at `/trace` or watch the contracts at `/chain`, without logging in.
+
+Full schematic, message sequence, state machines and data model: [docs/architecture.md](docs/architecture.md).
+
 ## What it does
 
 | Role | Screen | What happens on-chain |
@@ -136,6 +178,13 @@ make run                # http://axk.localhost:8000
 
 With `axk_demo_mode: 1`, the role screens work without signing in **from this machine only**; network
 requests are refused. On any shared host set it to `0` and sign in as a System Manager.
+
+Running tips:
+
+- **Safari** does not resolve `*.localhost` names. Use `http://localhost:8000/trade` there; Chrome and Firefox accept either.
+- The bare address `http://localhost:8000/` is AXK Network's login page, not the capstone. Start at `/trade`.
+- `make run` detects a copy that is already running and says so. To restart: `pkill -f 'honcho start'`, then `make run`.
+- Keep the `make run` terminal open while using the app; Ctrl+C stops it.
 
 ## Walkthrough
 
