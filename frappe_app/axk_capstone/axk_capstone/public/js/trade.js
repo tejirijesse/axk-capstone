@@ -637,6 +637,17 @@
   }
 
   refresh().catch(function (e) {
+    if (/sign in/i.test(e.message)) {
+      var back = location.pathname + location.search;
+      setMain(el("div", { class: "xt-card xt-signin" },
+        el("h2", { text: "Sign in to use the trade screens" }),
+        el("p", { text: "These screens sign real Stellar testnet transactions, so they need an account. Anyone can still verify a lot or browse the chain explorer without one." }),
+        el("div", { class: "xt-signin-actions" },
+          el("a", { class: "xt-btn", href: "/login?redirect-to=" + encodeURIComponent(back), text: "Sign in" }),
+          el("a", { class: "xt-btn ghost", href: "/trace", text: "Verify a lot" }),
+          el("a", { class: "xt-btn ghost", href: "/chain", text: "Chain explorer" }))));
+      return;
+    }
     setMain(el("div", { class: "xt-card" }, el("p", { class: "xt-note error", text: e.message })));
   });
 })();

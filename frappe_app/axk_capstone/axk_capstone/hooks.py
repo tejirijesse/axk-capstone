@@ -5,3 +5,6 @@ app_description = "Stellar verification and settlement layer for AXK Network; ch
 app_email = "mr_otj@yahoo.com"
 app_license = "mit"
 required_apps = ["axk_network"]
+
+after_install = "axk_capstone.setup.ensure_roles"
+after_migrate = "axk_capstone.setup.ensure_roles"

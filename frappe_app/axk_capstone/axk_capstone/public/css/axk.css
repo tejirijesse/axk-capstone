@@ -263,3 +263,6 @@
 
 /* cards laid out by a grid get their spacing from the grid gap, not the stacking margin */
 .xt-grid-3 > .xt-card + .xt-card, .xt-grid-2b > .xt-card + .xt-card, .xt-grid-2 > .xt-card + .xt-card { margin-top: 0; }
+
+.xt-signin { max-width: 560px; margin: 24px auto; display: grid; gap: 12px; }
+.xt-signin-actions { display: flex; gap: 8px; flex-wrap: wrap; }

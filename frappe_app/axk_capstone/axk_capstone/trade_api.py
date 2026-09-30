@@ -24,12 +24,44 @@ PRICE_RWF_PER_KG = {"Coffee (parchment)": 3400, "Maize (dry grain)": 420, "Beans
                     "Sorghum": 450, "Wheat": 520}
 
 
+DEMO_ROLE = "AXK Capstone Demo"
+# Headers any proxy or tunnel (Cloudflare, nginx) adds. A request carrying one came from
+# outside this machine even though the TCP connection is local, and X-Forwarded-For is
+# client-controlled, so frappe.local.request_ip cannot be trusted here.
+PROXY_HEADERS = ("X-Forwarded-For", "CF-Connecting-IP", "CF-Ray", "Forwarded", "X-Real-IP", "True-Client-IP")
+SIGN_IN = "Sign in to use the trade screens."
+
+
+def _direct_local_request():
+    req = getattr(frappe, "request", None)
+    if req is None:
+        return False
+    if any(req.headers.get(h) for h in PROXY_HEADERS):
+        return False
+    return req.remote_addr in LOOPBACK
+
+
 def _guard():
-    if frappe.session.user != "Guest" and "System Manager" in frappe.get_roles():
+    if frappe.session.user != "Guest" and ({"System Manager", DEMO_ROLE} & set(frappe.get_roles())):
         return
-    if cint(frappe.conf.get("axk_demo_mode")) and frappe.local.request_ip in LOOPBACK:
+    if cint(frappe.conf.get("axk_demo_mode")) and _direct_local_request():
         return
-    frappe.throw("Sign in as a System Manager to use the trade screens.", frappe.PermissionError)
+    frappe.throw(SIGN_IN, frappe.PermissionError)
+
+
+SIGN_LIMIT_PER_HOUR = 30
+
+
+def _throttle():
+    """Cap signed transactions per user per hour, so a shared reviewer login cannot be used
+    to spam testnet. Keyed by user, never by IP: the IP header is client-controlled."""
+    cache = frappe.cache()
+    key = cache.make_key(f"axk_capstone:signs:{frappe.session.user}")
+    count = cache.incr(key)
+    if count == 1:
+        cache.expire(key, 60 * 60)
+    if count > SIGN_LIMIT_PER_HOUR:
+        frappe.throw("Too many transactions this hour. Try again later.", frappe.RateLimitExceededError)
 
 
 def _fail(doc, e):
@@ -127,6 +159,7 @@ def lot(name):
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def register_lot(commodity, quantity_kg, declared_grade, origin, variety=None, harvest_date=None):
     _guard()
+    _throttle()
     if commodity not in COMMODITIES:
         frappe.throw("Unknown commodity")
     if declared_grade not in GRADES:
@@ -159,6 +192,7 @@ def register_lot(commodity, quantity_kg, declared_grade, origin, variety=None, h
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def inspect_lot(name, passed, grade, quantity_kg, moisture_pct=None, notes=None, reject_reason=None):
     _guard()
+    _throttle()
     doc = frappe.get_doc(DT, name)
     if cint(passed) != 1 and reject_reason not in chain.REJECT_REASONS:
         frappe.throw("Choose a rejection reason from the list")
@@ -182,6 +216,7 @@ def inspect_lot(name, passed, grade, quantity_kg, moisture_pct=None, notes=None,
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def fund_lot(name, amount_rwf):
     _guard()
+    _throttle()
     doc = frappe.get_doc(DT, name)
     if doc.status != "Approved":
         frappe.throw(f"{doc.lot_ref} is {doc.status}; only inspected, approved lots can be funded")
@@ -202,6 +237,7 @@ def fund_lot(name, amount_rwf):
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def confirm_delivery(name):
     _guard()
+    _throttle()
     doc = frappe.get_doc(DT, name)
     if doc.status != "Funded":
         frappe.throw(f"{doc.lot_ref} is {doc.status}; only funded trades can be settled")
@@ -229,6 +265,7 @@ def verify_lot(name):
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def top_up_buyer(amount_rwf=500000):
     _guard()
+    _throttle()
     amount = min(flt(amount_rwf), 5_000_000)
     try:
         chain.top_up_buyer(amount)
