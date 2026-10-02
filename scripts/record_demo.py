@@ -41,8 +41,8 @@ SCENES = [
         "id": "01_intro",
         "title": "Introduction & Overview",
         "text": (
-            "Welcome to the demonstration of AXK Network, a verification and settlement layer on Stellar "
-            "designed for cross-border agricultural trade corridors in East Africa. In traditional corridors, "
+            "Welcome to AXK Network, a verification and settlement layer on Stellar "
+            "built for cross-border agricultural trade corridors in East Africa. In traditional corridors, "
             "buyers face severe quality and custody risks, while cross-border payments are slow and uncertain. "
             "AXK solves this by synchronizing physical custody with smart contracts on Stellar testnet."
         ),
@@ -53,8 +53,8 @@ SCENES = [
         "title": "Cooperative Lot Registration",
         "text": (
             "We begin at the Cooperative dashboard. Cooperatives register their agricultural harvests before sale. "
-            "Here we register a 4,500 kilogram lot of high-grade Rwandan coffee from Huye District. "
-            "The system computes market pricing, packages a canonical JSON record, hashes it with SHA-256, "
+            "Here, we register a 4,500-kilogram lot of high-grade Rwandan coffee from Hoo-ye District. "
+            "The system computes market pricing, packages a canonical JSON record, hashes it with SHA 256, "
             "and commits the registration to the Stellar lot registry bound to the cooperative's address."
         ),
         "url": "http://localhost:8000/trade/coop",
@@ -63,7 +63,7 @@ SCENES = [
         "id": "03_inspector",
         "title": "Independent Inspection & Quality Grading",
         "text": (
-            "Next, an authorised independent inspector grades the cargo. "
+            "Next, an authorized independent inspector grades the cargo. "
             "The inspector measures moisture content at 11.8 percent, confirms Grade A quality, "
             "and signs an immutable pass attestation on-chain. "
             "Uninspected or rejected lots cannot proceed to sale, protecting buyers from substandard produce."
@@ -74,9 +74,9 @@ SCENES = [
         "id": "04_buyer_escrow",
         "title": "Buyer Smart-Contract Escrow",
         "text": (
-            "Now the buyer reviews the certified lot. Only inspected and approved goods appear in the marketplace. "
-            "The buyer deposits payment into a Soroban smart-contract escrow. "
-            "The escrow contract locks the funds, strictly bound to the registered cooperative payee."
+            "Now, the buyer reviews the certified lot. Only inspected and approved goods appear in the marketplace. "
+            "The buyer locks payment into a Soroban smart-contract escrow, "
+            "bound strictly to the registered cooperative payee."
         ),
         "url": "http://localhost:8000/trade/buy",
     },
@@ -85,7 +85,7 @@ SCENES = [
         "title": "Logistics Custody & Tamper-Evident Seal",
         "text": (
             "Physical custody now transfers to the transport carrier. "
-            "Swift Freight Logistics assigns driver Emmanuel Nzeyimana and vehicle RAD 482B. "
+            "Swift Freight Logistics assigns driver Emmanuel Nziyimana and vehicle R-A-D, 482 B. "
             "A tamper-evident container seal is generated and locked to the container. "
             "The carrier commits a cryptographic waybill digest to the custody trail, and the cargo is dispatched."
         ),
@@ -107,7 +107,7 @@ SCENES = [
         "title": "Settlement & Automated Member Revenue Split",
         "text": (
             "With physical custody verified at the port, the buyer confirms delivery. "
-            "This triggers the Soroban splitter contract: escrow releases payment, automatically distributing "
+            "This triggers the Soroban splitter contract: escrow releases payment, distributing "
             "40 percent to the farmer pool, 40 percent to the cooperative treasury, and 20 percent to the input reserve. "
             "The settlement attestation is anchored permanently on Stellar."
         ),
@@ -117,10 +117,10 @@ SCENES = [
         "id": "08_trace",
         "title": "Public Chain & Trace Verification",
         "text": (
-            "Anyone along the corridor can publicly verify the shipment at slash trace without logging in. "
+            "Anyone along the corridor can publicly verify the shipment at slash trace, with no login required. "
             "A dynamic vector QR code allows instant mobile verification. "
-            "The complete 6-stage custody timeline is displayed with links to the Stellar block explorer. "
-            "In addition, all four cryptographic SHA-256 hashes are verified in real time."
+            "The complete 6-stage custody timeline is displayed with links to the Stellar block explorer, "
+            "and all four cryptographic SHA 256 hashes are verified in real time."
         ),
         "url": "http://localhost:8000/trace",
     },
@@ -145,7 +145,13 @@ def generate_audio(scene):
 
     print(f"  [Neural Voice] Synthesizing {sid} ({NARRATION_VOICE})...")
     uv_bin = shutil.which("uv") or "/Users/joe/.local/bin/uv"
-    cmd = [uv_bin, "tool", "run", "edge-tts", "--voice", NARRATION_VOICE, "--text", txt, "--write-media", str(mp3_path)]
+    cmd = [
+        uv_bin, "tool", "run", "edge-tts",
+        "--voice", NARRATION_VOICE,
+        "--rate=-4%",
+        "--text", txt,
+        "--write-media", str(mp3_path),
+    ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run([
         "ffmpeg", "-y", "-i", str(mp3_path),
