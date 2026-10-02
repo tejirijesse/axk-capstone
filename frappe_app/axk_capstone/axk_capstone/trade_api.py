@@ -89,8 +89,13 @@ def _row(d):
         "moisture_pct": d.moisture_pct, "passed": d.passed, "inspector_name": d.inspector_name,
         "buyer_name": d.buyer_name, "amount_rwf": d.amount_rwf,
         "price_rwf": round((d.inspected_quantity_kg or d.quantity_kg or 0) * PRICE_RWF_PER_KG.get(d.commodity, 500)),
+        "carrier_name": d.carrier_name, "driver_name": d.driver_name, "vehicle_plate": d.vehicle_plate,
+        "seal_number": d.seal_number, "destination_port": d.destination_port, "waybill_ref": d.waybill_ref,
+        "port_name": d.port_name, "container_id": d.container_id, "customs_ref": d.customs_ref,
+        "seal_verified": d.seal_verified,
         "registered_at": _iso(d.registered_at), "inspected_at": _iso(d.inspected_at),
-        "funded_at": _iso(d.funded_at), "settled_at": _iso(d.settled_at),
+        "funded_at": _iso(d.funded_at), "dispatched_at": _iso(d.dispatched_at),
+        "port_received_at": _iso(d.port_received_at), "settled_at": _iso(d.settled_at),
         "reject_reason": d.reject_reason,
         "modified": _iso(d.modified),
     }
@@ -98,8 +103,11 @@ def _row(d):
 
 FIELDS = ["name", "lot_ref", "status", "commodity", "variety", "declared_grade", "quantity_kg", "origin",
           "harvest_date", "cooperative_name", "inspected_grade", "inspected_quantity_kg", "moisture_pct",
-          "passed", "inspector_name", "buyer_name", "amount_rwf", "registered_at", "inspected_at",
-          "funded_at", "settled_at", "reject_reason", "modified"]
+          "passed", "inspector_name", "buyer_name", "amount_rwf",
+          "carrier_name", "driver_name", "vehicle_plate", "seal_number", "destination_port", "waybill_ref",
+          "port_name", "container_id", "customs_ref", "seal_verified",
+          "registered_at", "inspected_at", "funded_at", "dispatched_at", "port_received_at", "settled_at",
+          "reject_reason", "modified"]
 
 
 @frappe.whitelist(allow_guest=True)
@@ -118,12 +126,12 @@ def overview():
 def personas():
     _guard()
     out = []
-    for key in ("coop", "inspector", "buyer"):
+    for key in ("coop", "inspector", "logistics", "port", "buyer"):
         p = chain.PERSONAS[key]
         try:
             bal = chain.balance_rwf(key)
-        except chain.ChainError:
-            bal = None  # e.g. the inspector holds no RWF trustline
+        except Exception:
+            bal = None
         out.append({"key": key, "name": p["name"], "role": p["role"], "address": chain.address(key), "rwf": bal})
     return out
 
@@ -136,6 +144,8 @@ def lot(name):
         ("Registered by cooperative", d.register_tx, d.registered_at),
         ("Inspected" + (" · passed" if d.passed else " · rejected" if d.inspect_tx else ""), d.inspect_tx, d.inspected_at),
         ("Escrow funded by buyer", d.fund_tx, d.funded_at),
+        ("Dispatched by logistics carrier", d.dispatch_tx, d.dispatched_at),
+        ("Received & cleared at port terminal", d.port_tx, d.port_received_at),
         ("Released to cooperative", d.release_tx, None),
         ("Split recorded 40 / 40 / 20", d.split_tx, None),
         ("Members paid", d.distribute_tx, None),
@@ -146,7 +156,12 @@ def lot(name):
         "chain_lot_id": d.chain_lot_id, "lot_digest": d.lot_digest, "lot_record": d.lot_record,
         "report_digest": d.report_digest, "report_record": d.report_record, "inspection_notes": d.inspection_notes,
         "reject_reason": d.reject_reason, "trade_id": d.trade_id, "attest_digest": d.attest_digest,
-        "inspect_tx": d.inspect_tx, "attest_tx": d.attest_tx, "settlement_record": d.settlement_record,
+        "waybill_ref": d.waybill_ref, "waybill_record": d.waybill_record, "waybill_digest": d.waybill_digest,
+        "register_tx": d.register_tx, "inspect_tx": d.inspect_tx, "fund_tx": d.fund_tx,
+        "dispatch_tx": d.dispatch_tx, "port_receipt_record": d.port_receipt_record,
+        "port_receipt_digest": d.port_receipt_digest, "port_tx": d.port_tx,
+        "release_tx": d.release_tx, "split_tx": d.split_tx, "distribute_tx": d.distribute_tx,
+        "attest_tx": d.attest_tx, "settlement_record": d.settlement_record,
         "cooperative_account": d.cooperative_account, "inspector_account": d.inspector_account,
         "buyer_account": d.buyer_account, "deadline": _iso(d.deadline), "last_error": d.last_error,
         "contracts": {k: d.get(k) for k in ("registry", "escrow", "splitter", "attestation", "token")},
@@ -235,12 +250,44 @@ def fund_lot(name, amount_rwf):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+def dispatch_logistics(name, carrier_name=None, driver_name=None, vehicle_plate=None, seal_number=None, destination_port=None):
+    _guard()
+    _throttle()
+    doc = frappe.get_doc(DT, name)
+    try:
+        chain.dispatch_logistics(doc, carrier_name, driver_name, vehicle_plate, seal_number, destination_port)
+        doc.last_error = None
+        doc.save(ignore_permissions=True)
+    except chain.ChainError as e:
+        _fail(doc, e)
+    frappe.db.commit()
+    chain.forget_balances()
+    return lot(doc.name)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def receive_port(name, port_name=None, container_id=None, customs_ref=None, seal_number=None):
+    _guard()
+    _throttle()
+    doc = frappe.get_doc(DT, name)
+    try:
+        chain.receive_port(doc, port_name, container_id, customs_ref, seal_number)
+        doc.last_error = None
+        doc.save(ignore_permissions=True)
+    except chain.ChainError as e:
+        _fail(doc, e)
+    frappe.db.commit()
+    chain.forget_balances()
+    return lot(doc.name)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def confirm_delivery(name):
     _guard()
     _throttle()
     doc = frappe.get_doc(DT, name)
-    if doc.status != "Funded":
-        frappe.throw(f"{doc.lot_ref} is {doc.status}; only funded trades can be settled")
+    if doc.status not in ("At Port", "In Transit", "Funded"):
+        frappe.throw(f"{doc.lot_ref} is {doc.status}; only funded or delivered trades can be settled")
     try:
         chain.settle(doc)
         doc.last_error = None

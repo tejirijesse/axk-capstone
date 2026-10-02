@@ -39,16 +39,19 @@ done
 step "Deploy lot registry, escrow, splitter, attestation"
 echo "  (verifier also holds registry admin, coordinator and attester on testnet; the inspector is a separate account)"
 V=$(addr verifier)
-REGISTRY=$(stellar contract deploy --wasm "$WASM/axk_lot_registry.wasm" --source axk-verifier --network "$NET" -- --admin "$V" 2>/dev/null)
-ESCROW=$(stellar contract deploy --wasm "$WASM/axk_escrow.wasm" --source axk-verifier --network "$NET" -- --verifier "$V" --registry "$REGISTRY" 2>/dev/null)
-SPLITTER=$(stellar contract deploy --wasm "$WASM/axk_splitter.wasm" --source axk-verifier --network "$NET" -- --coordinator "$V" 2>/dev/null)
-ATTEST=$(stellar contract deploy --wasm "$WASM/axk_attestation.wasm" --source axk-verifier --network "$NET" -- --attester "$V" 2>/dev/null)
+deploy_contract() {
+  "$@" 2>&1 | grep -oE 'C[A-Z0-9]{55}' | tail -1
+}
+REGISTRY=$(deploy_contract stellar contract deploy --wasm "$WASM/axk_lot_registry.wasm" --source axk-verifier --network "$NET" -- --admin "$V")
+ESCROW=$(deploy_contract stellar contract deploy --wasm "$WASM/axk_escrow.wasm" --source axk-verifier --network "$NET" -- --verifier "$V" --registry "$REGISTRY")
+SPLITTER=$(deploy_contract stellar contract deploy --wasm "$WASM/axk_splitter.wasm" --source axk-verifier --network "$NET" -- --coordinator "$V")
+ATTEST=$(deploy_contract stellar contract deploy --wasm "$WASM/axk_attestation.wasm" --source axk-verifier --network "$NET" -- --attester "$V")
 printf '  registry    %s\n  escrow      %s\n  splitter    %s\n  attestation %s\n' "$REGISTRY" "$ESCROW" "$SPLITTER" "$ATTEST"
 invoke --id "$REGISTRY" --source axk-verifier -- add_inspector --inspector axk-inspector 2>&1 | tx_link
 
 step "RWF test token (local-currency stand-in, no real value)"
 ASSET="RWF:$(addr issuer)"
-TOKEN=$(stellar contract id asset --asset "$ASSET" --network "$NET")
+TOKEN=$(stellar contract id asset --asset "$ASSET" --network "$NET" | grep -oE 'C[A-Z0-9]{55}' | tail -1)
 stellar contract asset deploy --asset "$ASSET" --source axk-issuer --network "$NET" >/dev/null 2>&1 || true
 for k in buyer coop member1 member2; do
   stellar tx new change-trust --line "$ASSET" --source "axk-$k" --network "$NET" >/dev/null 2>&1 || true
@@ -67,7 +70,7 @@ echo "  lot $LOT -> trade_id $TID"
 
 step "1. Cooperative registers the lot (digest of the lot record)"
 LOT_ID=$(invoke --id "$REGISTRY" --source axk-coop -- register_lot \
-  --cooperative axk-coop --lot_ref "$LOT_REF" --digest "$LOT_DIGEST" 2>/dev/null | tr -d '"')
+  --cooperative axk-coop --lot_ref "$LOT_REF" --digest "$LOT_DIGEST" 2>&1 | grep -oE '[0-9a-f]{64}' | tail -1)
 echo "  on-chain lot_id $LOT_ID"
 invoke --id "$REGISTRY" --source axk-verifier --send=no -- get --lot_id "$LOT_ID"
 

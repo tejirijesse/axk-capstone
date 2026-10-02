@@ -1,5 +1,5 @@
 {% macro pill(s) -%}
-{%- set m = {"Registered":["registered","○","Awaiting inspection"],"Approved":["approved","✓","Inspected · passed"],"Rejected":["rejected","✕","Inspected · rejected"],"Funded":["funded","◷","In escrow"],"Settled":["settled","●","Settled"],"Refunded":["refunded","↩","Refunded"]} -%}
+{%- set m = {"Registered":["registered","○","Awaiting inspection"],"Approved":["approved","✓","Inspected · passed"],"Rejected":["rejected","✕","Inspected · rejected"],"Funded":["funded","◷","In escrow"],"In Transit":["in-transit","🚚","In transit"],"At Port":["at-port","⚓","At port / terminal"],"Settled":["settled","●","Settled"],"Refunded":["refunded","↩","Refunded"]} -%}
 {%- set v = m.get(s, ["registered","○",s]) -%}
 <span class="xt-pill {{ v[0] }}"><span aria-hidden="true">{{ v[1] }}</span>{{ v[2] }}</span>
 {%- endmacro %}

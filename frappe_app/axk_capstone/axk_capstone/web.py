@@ -10,6 +10,8 @@ NAV = [
     ("overview", "/trade", "Overview"),
     ("coop", "/trade/coop", "Cooperative"),
     ("inspect", "/trade/inspect", "Inspector"),
+    ("logistics", "/trade/logistics", "Logistics"),
+    ("port", "/trade/port", "Port / Terminal"),
     ("buy", "/trade/buy", "Buyer"),
     ("verify", "/trace", "Verify"),
     ("chain", "/chain", "Chain explorer"),

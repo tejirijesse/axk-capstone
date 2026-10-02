@@ -6,7 +6,7 @@ BENCH ?= $(HOME)/Documents/axk-bench
 SITE  ?= axk.localhost
 SEED  ?= $(CURDIR)/axk_seed/data
 
-.PHONY: help toolchain test build demo run seed seed-purge install-app contracts-config zip
+.PHONY: help toolchain test test-contracts test-python build demo run run-frappe seed seed-purge install-app contracts-config zip
 
 help:            ## list tasks
 	@grep -E "^[a-z-]+:.*## " $(MAKEFILE_LIST) | sed -E "s/:.*## /\t/" | column -t -s "$$(printf "\t")"
@@ -16,8 +16,15 @@ toolchain:       ## install Rust, the wasm target and stellar-cli (macOS, Homebr
 	rustup default stable
 	rustup target add wasm32v1-none
 
-test:            ## run all 65 contract tests
+test:            ## run both contract tests (65) and python integration tests (7)
 	cd contracts && cargo test
+	python3 scripts/test_trade.py
+
+test-contracts:  ## run all 65 smart contract unit tests
+	cd contracts && cargo test
+
+test-python:     ## run end-to-end integration and failure-mode test suite
+	python3 scripts/test_trade.py
 
 build:           ## build the four contracts to wasm
 	cd contracts && stellar contract build
@@ -42,8 +49,14 @@ seed:            ## import the synthetic five-year dataset into the site
 seed-purge:      ## remove only the synthetic seed rows
 	cd $(BENCH) && bench --site $(SITE) execute axk_network.capstone_seed.run --kwargs "{'path': '$(SEED)', 'purge': True}"
 
-run:             ## start Frappe at http://axk.localhost:8000
+run:             ## start instant standalone runner (zero dependencies, http://localhost:8000)
+	python3 scripts/server.py
+
+run-frappe:      ## start full Frappe stack at http://axk.localhost:8000
 	./scripts/run-frappe.sh
+
+record-demo:     ## generate the full 1080p narrated walkthrough demo video
+	python3 scripts/record_demo.py
 
 zip:             ## package the repository for submission (tracked files only)
 	git archive --format=zip --prefix=axk-capstone/ -o axk-capstone-submission.zip HEAD

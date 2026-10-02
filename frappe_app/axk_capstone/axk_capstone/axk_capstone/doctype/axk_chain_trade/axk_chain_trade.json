@@ -30,7 +30,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Registered\nApproved\nRejected\nFunded\nSettled\nRefunded",
+   "options": "Registered\nApproved\nRejected\nFunded\nIn Transit\nAt Port\nSettled\nRefunded",
    "default": "Registered",
    "in_list_view": 1,
    "in_standard_filter": 1
@@ -246,6 +246,132 @@
    "fieldname": "deadline",
    "fieldtype": "Datetime",
    "label": "Refund deadline",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_logistics",
+   "fieldtype": "Section Break",
+   "label": "Logistics & Transport"
+  },
+  {
+   "fieldname": "carrier_name",
+   "fieldtype": "Data",
+   "label": "Carrier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "driver_name",
+   "fieldtype": "Data",
+   "label": "Driver name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vehicle_plate",
+   "fieldtype": "Data",
+   "label": "Vehicle plate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "destination_port",
+   "fieldtype": "Data",
+   "label": "Destination port",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_logistics",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "seal_number",
+   "fieldtype": "Data",
+   "label": "Container seal number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "waybill_ref",
+   "fieldtype": "Data",
+   "label": "Waybill reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "waybill_record",
+   "fieldtype": "Long Text",
+   "label": "Waybill record (canonical JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "waybill_digest",
+   "fieldtype": "Data",
+   "label": "Waybill digest (sha256)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dispatch_tx",
+   "fieldtype": "Data",
+   "label": "Dispatch tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dispatched_at",
+   "fieldtype": "Datetime",
+   "label": "Dispatched at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_port",
+   "fieldtype": "Section Break",
+   "label": "Port & Customs Terminal"
+  },
+  {
+   "fieldname": "port_name",
+   "fieldtype": "Data",
+   "label": "Port / Terminal",
+   "read_only": 1
+  },
+  {
+   "fieldname": "container_id",
+   "fieldtype": "Data",
+   "label": "Container ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customs_ref",
+   "fieldtype": "Data",
+   "label": "Customs declaration ref",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_port",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "seal_verified",
+   "fieldtype": "Check",
+   "label": "Seal verified intact",
+   "read_only": 1
+  },
+  {
+   "fieldname": "port_receipt_record",
+   "fieldtype": "Long Text",
+   "label": "Port receipt record (canonical JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "port_receipt_digest",
+   "fieldtype": "Data",
+   "label": "Port receipt digest (sha256)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "port_tx",
+   "fieldtype": "Data",
+   "label": "Port arrival tx",
+   "read_only": 1
+  },
+  {
+   "fieldname": "port_received_at",
+   "fieldtype": "Datetime",
+   "label": "Port received at",
    "read_only": 1
   },
   {

@@ -117,8 +117,7 @@
 .xt-role-foot b { color: var(--brand); }
 
 /* ---- lifecycle strip ---- */
-.xt-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-@media (max-width: 720px) { .xt-flow { grid-template-columns: repeat(2, 1fr); } }
+.xt-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 .xt-flow-step { background: var(--surface-2); border-radius: 10px; padding: 12px; position: relative; }
 .xt-flow-step b { display: block; font-size: 22px; font-weight: 650; }
 .xt-flow-step span { font-size: 12px; color: var(--text-secondary); }
@@ -141,6 +140,8 @@
 .xt-pill.approved { background: var(--good-wash); color: var(--good-text); }
 .xt-pill.rejected { background: var(--critical-wash); color: var(--critical-text); }
 .xt-pill.funded { background: var(--info-wash); color: var(--info-text); }
+.xt-pill.in-transit { background: rgba(142, 68, 173, 0.12); color: #8e44ad; }
+.xt-pill.at-port { background: rgba(41, 128, 185, 0.12); color: #1f618d; }
 .xt-pill.settled { background: var(--brand-wash); color: var(--brand); }
 .xt-pill.refunded { background: rgba(236, 131, 90, 0.12); color: var(--serious-text); }
 

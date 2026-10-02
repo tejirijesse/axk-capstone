@@ -104,6 +104,8 @@
     Approved: ["approved", "✓", "Inspected · passed"],
     Rejected: ["rejected", "✕", "Inspected · rejected"],
     Funded: ["funded", "◷", "In escrow"],
+    "In Transit": ["in-transit", "🚚", "In transit"],
+    "At Port": ["at-port", "⚓", "At port / terminal"],
     Settled: ["settled", "●", "Settled"],
     Refunded: ["refunded", "↩", "Refunded"],
   };
@@ -193,8 +195,13 @@
   // lot data first and redraws once balances arrive.
   var PERSONAS = null;
   function personasFallback() {
-    return [{ key: "coop", name: "Cooperative", role: "Cooperative" }, { key: "inspector", name: "Inspector", role: "Inspector" },
-      { key: "buyer", name: "Buyer", role: "Buyer" }].map(function (p) { return Object.assign({ address: "", rwf: null, loading: true }, p); });
+    return [
+      { key: "coop", name: "Cooperative", role: "Cooperative" },
+      { key: "inspector", name: "Inspector", role: "Inspector" },
+      { key: "logistics", name: "Logistics Carrier", role: "Logistics" },
+      { key: "port", name: "Port / Terminal", role: "Port / Terminal" },
+      { key: "buyer", name: "Buyer", role: "Buyer" }
+    ].map(function (p) { return Object.assign({ address: "", rwf: null, loading: true }, p); });
   }
 
   // ---------------------------------------------------------------- overview
@@ -207,14 +214,18 @@
         count: (c.Registered || 0), countLabel: "awaiting inspection" },
       { href: "/trade/inspect", icon: "🔎", title: "Inspector", who: P.inspector, items: ["Work through the inspection queue", "Record grade, weight and moisture", "Sign pass or reject on-chain, once"],
         count: (c.Registered || 0), countLabel: "lots in your queue" },
+      { href: "/trade/logistics", icon: "🚚", title: "Logistics", who: P.logistics, items: ["Assign carrier, driver and vehicle plate", "Record container seal & issue waybill", "Track transit along trade corridors"],
+        count: (c.Funded || 0) + (c.Approved || 0), countLabel: "ready for transport" },
+      { href: "/trade/port", icon: "⚓", title: "Port / Terminal", who: P.port, items: ["Gate-in verification and customs check", "Verify container seal against waybill", "Confirm port receipt for buyer settlement"],
+        count: (c["In Transit"] || 0), countLabel: "in transit to port" },
       { href: "/trade/buy", icon: "🛒", title: "Buyer", who: P.buyer, items: ["Browse lots that passed inspection", "Lock payment in escrow for the cooperative", "Confirm delivery to release and settle"],
-        count: (c.Approved || 0) + (c.Funded || 0), countLabel: "for sale or awaiting delivery" },
+        count: (c.Approved || 0) + (c.Funded || 0) + (c["In Transit"] || 0) + (c["At Port"] || 0), countLabel: "active or for sale" },
     ];
 
     setMain(
       head("Verified trade, settled on-chain",
-        "A cooperative registers a lot, an independent inspector signs it off, and only then can a buyer's payment go into escrow. Delivery releases the money and splits it to members. Every step is a Stellar transaction."),
-      el("div", { class: "xt-grid-3" }, roles.map(function (r) {
+        "A cooperative registers a lot, an independent inspector signs it off, payment is locked in escrow, logistics seals & tracks the container, port verifies clearance, and delivery releases & splits payment to members."),
+      el("div", { class: "xt-grid-3", style: "grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))" }, roles.map(function (r) {
         return el("a", { class: "xt-card xt-role", href: r.href },
           el("div", { class: "xt-role-top" }, el("div", { class: "xt-role-icon", "aria-hidden": "true", text: r.icon }),
             el("div", {}, el("h2", { text: r.title }), el("p", { style: "font-size:12px", text: r.who ? r.who.name : "" }))),
@@ -224,10 +235,12 @@
       el("div", { class: "xt-card xt-section-gap" },
         el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Lifecycle" }), el("p", { text: "Live lots on Stellar testnet, by stage." }))),
         el("div", { class: "xt-flow" },
-          flowStep(c.Registered || 0, "Registered", "waiting for an inspector"),
-          flowStep((c.Approved || 0) + (c.Rejected || 0) + (c.Funded || 0) + (c.Settled || 0), "Inspected", (c.Rejected || 0) + " rejected"),
-          flowStep(c.Funded || 0, "In escrow", "waiting for delivery"),
-          flowStep(c.Settled || 0, "Settled", "released, split and attested"))),
+          flowStep(c.Registered || 0, "Registered", "waiting for inspection"),
+          flowStep((c.Approved || 0) + (c.Rejected || 0) + (c.Funded || 0) + (c["In Transit"] || 0) + (c["At Port"] || 0) + (c.Settled || 0), "Inspected", (c.Rejected || 0) + " rejected"),
+          flowStep(c.Funded || 0, "In escrow", "payment locked"),
+          flowStep(c["In Transit"] || 0, "In transit", "carrier custody & seal"),
+          flowStep(c["At Port"] || 0, "At port", "customs & gate cleared"),
+          flowStep(c.Settled || 0, "Settled", "released, split & attested"))),
       el("div", { class: "xt-card xt-section-gap" },
         el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Recent activity" }), el("p", { text: "Open a lot for its on-chain timeline." }))),
         table([
@@ -409,11 +422,169 @@
     else if (e.key === "r" && inspectKeys.decide) { e.preventDefault(); inspectKeys.decide("Reject"); }
   });
 
+  // ---------------------------------------------------------------- logistics
+  var selectedForDispatch = null;
+  function renderLogistics(data, personas) {
+    var me = personas.filter(function (p) { return p.key === "logistics"; })[0];
+    var readyQueue = data.lots.filter(function (l) { return l.status === "Funded" || l.status === "Approved"; });
+    var inTransit = data.lots.filter(function (l) { return l.status === "In Transit"; });
+    var delivered = data.lots.filter(function (l) { return l.status === "At Port" || l.status === "Settled"; });
+
+    if (!readyQueue.some(function (l) { return l.name === selectedForDispatch; })) {
+      selectedForDispatch = readyQueue.length ? readyQueue[0].name : null;
+    }
+    var current = readyQueue.filter(function (l) { return l.name === selectedForDispatch; })[0];
+
+    var queueCards = readyQueue.length ? el("div", { class: "xt-lotcards" }, readyQueue.map(function (l, i) {
+      return el("button", { type: "button", class: "xt-lotcard" + (l.name === selectedForDispatch ? " active" : ""),
+        on: { click: function () { selectedForDispatch = l.name; renderLogistics(data, personas); } } },
+        el("div", { class: "xt-lotcard-top" }, el("div", {}, el("h3", { text: (i + 1) + ". " + l.commodity }), el("div", { class: "xt-lotcard-ref", text: l.lot_ref })), pill(l.status)),
+        el("dl", {},
+          el("dt", { text: "Quantity" }), el("dd", { text: kg(l.inspected_quantity_kg || l.quantity_kg) }),
+          el("dt", { text: "Origin" }), el("dd", { text: l.origin }),
+          el("dt", { text: "Cooperative" }), el("dd", { text: l.cooperative_name })));
+    })) : el("div", { class: "xt-empty", text: "No lots awaiting dispatch. Lots appear here once approved or funded in escrow." });
+
+    setMain(
+      head("Logistics & Transport", "Take custody of verified goods, seal transport containers, issue cryptographic waybills, and track transit across trade corridors."),
+      personaBar(me),
+      el("div", { class: "xt-tiles" },
+        tile("Awaiting dispatch", String(readyQueue.length)),
+        tile("In transit", String(inTransit.length), "carrier custody"),
+        tile("Arrived at port", String(delivered.length), "customs & gate-in cleared")),
+      el("div", { class: "xt-grid-2b" },
+        el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Dispatch queue" }), el("p", { text: "Select a lot to assign transport and seal." }))), queueCards),
+        current ? dispatchForm(current) : el("div", { class: "xt-card" }, el("div", { class: "xt-empty", text: "Pick a lot from the queue to dispatch." }))),
+      el("div", { class: "xt-card xt-section-gap" },
+        el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Active transit & custody log" }), el("p", { text: "Real-time carrier custody, tamper-evident seals and waybill digests." }))),
+        table([
+          { label: "Lot", get: function (r) { return el("a", { href: lotLink(r), text: r.lot_ref }); } },
+          { label: "Commodity", get: function (r) { return r.commodity; } },
+          { label: "Carrier & Driver", get: function (r) { return (r.carrier_name || "—") + (r.driver_name ? " (" + r.driver_name + ")" : ""); } },
+          { label: "Plate & Seal", get: function (r) { return (r.vehicle_plate || "—") + " · Seal " + (r.seal_number || "—"); } },
+          { label: "Destination", get: function (r) { return r.destination_port || "—"; } },
+          { label: "Dispatched", get: function (r) { return when(r.dispatched_at); } },
+          { label: "Status", get: function (r) { return pill(r.status); } },
+        ], inTransit.concat(delivered), function (r) { location.href = lotLink(r); }, "No shipments dispatched yet.")));
+  }
+
+  function dispatchForm(l) {
+    var carrier = input("disp-carrier", { value: "Swift Freight Logistics (Rwanda)", required: true });
+    var driver = input("disp-driver", { value: "Jean Bosco Nzeyimana", required: true });
+    var plate = input("disp-plate", { value: "RAD 482B", required: true, maxlength: "12" });
+    var seal = input("disp-seal", { value: "RW-SEAL-" + Math.floor(100000 + Math.random() * 900000), required: true, maxlength: "24" });
+    var ports = ["Kigali Logistics Platform", "Goma Inland Port", "Mombasa Port Corridor", "Dar es Salaam Port Corridor"];
+    var port = chips("disp-port", "Destination Port / Terminal", ports, ports[0]);
+    var submit = el("button", { class: "xt-btn block", type: "submit", text: "Seal container & dispatch on-chain" });
+
+    var form = el("form", { class: "xt-form", on: { submit: function (e) {
+      e.preventDefault();
+      submit.disabled = true;
+      withBusy("Signing custody waybill", "The carrier issues an immutable waybill and commits the seal number on-chain.",
+        api("dispatch_logistics", { name: l.name, carrier_name: carrier.value, driver_name: driver.value,
+          vehicle_plate: plate.value, seal_number: seal.value, destination_port: port.value }, true))
+        .then(function (lot) { txToast("Dispatched " + lot.lot_ref + " under seal " + seal.value + ".", lot, 3); return refresh(); })
+        .catch(fail).finally(function () { submit.disabled = false; });
+    } } },
+      el("dl", { class: "xt-kv" },
+        el("dt", { text: "Lot" }), el("dd", { class: "xt-mono", text: l.lot_ref }),
+        el("dt", { text: "Commodity" }), el("dd", { text: l.commodity + " · " + kg(l.inspected_quantity_kg || l.quantity_kg) }),
+        el("dt", { text: "Origin" }), el("dd", { text: l.origin })),
+      field("Carrier company", carrier),
+      el("div", { class: "xt-row" }, field("Driver name", driver), field("Vehicle plate", plate)),
+      field("Tamper seal number", seal, "Applied at loading; will be verified byte-for-byte upon arrival at port."),
+      chipField("Destination Port / Terminal", port),
+      submit);
+
+    return el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Dispatch " + l.lot_ref }), el("p", { text: "Assign transport carrier and issue waybill." }))), form);
+  }
+
+  // ---------------------------------------------------------------- port / terminal
+  var selectedForPort = null;
+  function renderPort(data, personas) {
+    var me = personas.filter(function (p) { return p.key === "port"; })[0];
+    var inTransitQueue = data.lots.filter(function (l) { return l.status === "In Transit"; });
+    var atPort = data.lots.filter(function (l) { return l.status === "At Port"; });
+    var settled = data.lots.filter(function (l) { return l.status === "Settled"; });
+
+    if (!inTransitQueue.some(function (l) { return l.name === selectedForPort; })) {
+      selectedForPort = inTransitQueue.length ? inTransitQueue[0].name : null;
+    }
+    var current = inTransitQueue.filter(function (l) { return l.name === selectedForPort; })[0];
+
+    var queueCards = inTransitQueue.length ? el("div", { class: "xt-lotcards" }, inTransitQueue.map(function (l, i) {
+      return el("button", { type: "button", class: "xt-lotcard" + (l.name === selectedForPort ? " active" : ""),
+        on: { click: function () { selectedForPort = l.name; renderPort(data, personas); } } },
+        el("div", { class: "xt-lotcard-top" }, el("div", {}, el("h3", { text: (i + 1) + ". " + l.commodity }), el("div", { class: "xt-lotcard-ref", text: l.lot_ref })), pill(l.status)),
+        el("dl", {},
+          el("dt", { text: "Carrier" }), el("dd", { text: l.carrier_name || "—" }),
+          el("dt", { text: "Vehicle / Seal" }), el("dd", { text: (l.vehicle_plate || "—") + " · Seal " + (l.seal_number || "—") }),
+          el("dt", { text: "Destination" }), el("dd", { text: l.destination_port || "—" }),
+          el("dt", { text: "Dispatched" }), el("dd", { text: when(l.dispatched_at) })));
+    })) : el("div", { class: "xt-empty", text: "No shipments currently in transit to port. Dispatch lots from Logistics first." });
+
+    setMain(
+      head("Port / Terminal", "Receive cross-border shipments, verify container seal integrity against waybills, record customs clearance, and stage goods for delivery."),
+      personaBar(me),
+      el("div", { class: "xt-tiles" },
+        tile("Inbound expected", String(inTransitQueue.length)),
+        tile("Cleared at port", String(atPort.length), "ready for delivery receipt"),
+        tile("Released / settled", String(settled.length))),
+      el("div", { class: "xt-grid-2b" },
+        el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Inbound arrivals" }), el("p", { text: "Select an incoming shipment for gate-in inspection." }))), queueCards),
+        current ? portArrivalForm(current) : el("div", { class: "xt-card" }, el("div", { class: "xt-empty", text: "Select an in-transit shipment to clear." }))),
+      el("div", { class: "xt-card xt-section-gap" },
+        el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Terminal inventory & customs clearances" }), el("p", { text: "Shipments cleared at gate-in with verified seals." }))),
+        table([
+          { label: "Lot", get: function (r) { return el("a", { href: lotLink(r), text: r.lot_ref }); } },
+          { label: "Commodity", get: function (r) { return r.commodity; } },
+          { label: "Port Terminal", get: function (r) { return r.port_name || "—"; } },
+          { label: "Container ID", get: function (r) { return r.container_id || "—"; } },
+          { label: "Customs Ref", get: function (r) { return r.customs_ref || "—"; } },
+          { label: "Seal Check", get: function (r) { return r.seal_verified ? check(true, "Intact (" + r.seal_number + ")") : "—"; } },
+          { label: "Arrived", get: function (r) { return when(r.port_received_at); } },
+          { label: "Status", get: function (r) { return pill(r.status); } },
+        ], atPort.concat(settled), function (r) { location.href = lotLink(r); }, "No cargo received at terminal yet.")));
+  }
+
+  function portArrivalForm(l) {
+    var port = chips("port-name", "Port / Terminal facility", ["Kigali Logistics Platform", "Goma Inland Port", "Mombasa Port Terminal"], l.destination_port || "Kigali Logistics Platform");
+    var container = input("port-container", { value: "MSKU-" + Math.floor(1000000 + Math.random() * 9000000), required: true });
+    var customs = input("port-customs", { value: "RW-CUST-2026-" + Math.floor(1000 + Math.random() * 9000), required: true });
+    var sealInput = input("port-seal", { value: l.seal_number || "", required: true });
+    var submit = el("button", { class: "xt-btn block", type: "submit", text: "Verify seal & clear gate-in on-chain" });
+
+    var form = el("form", { class: "xt-form", on: { submit: function (e) {
+      e.preventDefault();
+      if (sealInput.value.trim().toLowerCase() !== (l.seal_number || "").trim().toLowerCase()) {
+        toast("Tamper Alert: Entered seal (" + sealInput.value + ") does not match manifest seal (" + l.seal_number + ")!", true);
+        return;
+      }
+      submit.disabled = true;
+      withBusy("Recording port arrival", "Verifying container seal integrity and recording customs clearance on-chain.",
+        api("receive_port", { name: l.name, port_name: port.value, container_id: container.value,
+          customs_ref: customs.value, seal_number: sealInput.value }, true))
+        .then(function (lot) { txToast("Cleared " + lot.lot_ref + " at " + port.value + ". Ready for buyer delivery confirmation.", lot, 4); return refresh(); })
+        .catch(fail).finally(function () { submit.disabled = false; });
+    } } },
+      el("dl", { class: "xt-kv" },
+        el("dt", { text: "Lot" }), el("dd", { class: "xt-mono", text: l.lot_ref }),
+        el("dt", { text: "Carrier" }), el("dd", { text: (l.carrier_name || "—") + " · " + (l.driver_name || "") }),
+        el("dt", { text: "Vehicle plate" }), el("dd", { text: l.vehicle_plate || "—" }),
+        el("dt", { text: "Expected seal" }), el("dd", { class: "xt-mono", style: "font-weight:700;color:var(--brand)", text: l.seal_number || "—" })),
+      chipField("Port / Terminal", port),
+      el("div", { class: "xt-row" }, field("Container ID", container), field("Customs entry ref", customs)),
+      field("Inspected seal number at gate", sealInput, "Must match manifested seal number to guarantee no cargo tampering in transit."),
+      submit);
+
+    return el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Gate-in & Customs: " + l.lot_ref }), el("p", { text: "Inspect container and confirm seal integrity." }))), form);
+  }
+
   // ---------------------------------------------------------------- buyer
   function renderBuy(data, personas) {
     var me = personas.filter(function (p) { return p.key === "buyer"; })[0];
     var market = data.lots.filter(function (l) { return l.status === "Approved"; });
-    var mine = data.lots.filter(function (l) { return ["Funded", "Settled", "Refunded"].indexOf(l.status) >= 0; });
+    var mine = data.lots.filter(function (l) { return ["Funded", "In Transit", "At Port", "Settled", "Refunded"].indexOf(l.status) >= 0; });
 
     var topUp = el("button", { class: "xt-btn ghost small", type: "button", text: "Top up 500,000 RWF (testnet)", on: { click: function () {
       withBusy("Topping up", "The test RWF issuer pays the buyer. Testnet only; this token has no value.",
@@ -444,7 +615,7 @@
       personaBar(me, topUp),
       el("div", { class: "xt-tiles" },
         tile("Inspected lots for sale", String(market.length)),
-        tile("Awaiting delivery", String(mine.filter(function (l) { return l.status === "Funded"; }).length)),
+        tile("Active shipments", String(mine.filter(function (l) { return l.status === "Funded" || l.status === "In Transit" || l.status === "At Port"; }).length)),
         tile("Settled purchases", String(mine.filter(function (l) { return l.status === "Settled"; }).length))),
       el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Inspected lots for sale" }), el("p", { text: "Uninspected and rejected lots never appear here, and the escrow contract refuses them anyway." }))), cards),
       el("div", { class: "xt-card xt-section-gap" },
@@ -455,7 +626,14 @@
           { label: "Amount", num: true, get: function (r) { return rwf(r.amount_rwf); } },
           { label: "Status", get: function (r) { return pill(r.status); } },
           { label: "", get: function (r) {
-            if (r.status === "Funded") return el("button", { class: "xt-btn small", type: "button", text: "Confirm delivery", on: { click: function () { confirmDelivery(r); } } });
+            if (r.status === "At Port" || r.status === "In Transit" || r.status === "Funded") {
+              return el("button", {
+                class: "xt-btn small" + (r.status === "At Port" ? "" : " ghost"),
+                type: "button",
+                text: r.status === "At Port" ? "Confirm delivery (at port)" : "Confirm delivery",
+                on: { click: function () { confirmDelivery(r); } }
+              });
+            }
             return el("span", { style: "display:inline-flex;gap:10px" },
               el("button", { class: "xt-btn ghost small", type: "button", text: "Download record", on: { click: function () { downloadRecord(r.name); } } }),
               el("button", { class: "xt-btn ghost small", type: "button", text: "Copy share link", on: { click: function () { copyShare(r); } } }));
@@ -543,12 +721,19 @@
     var verifyOut = el("div", { "aria-live": "polite" });
     var verifyBtn = el("button", { class: "xt-btn ghost small", type: "button", text: "Check records against the chain", on: { click: function () {
       verifyBtn.disabled = true;
-      Promise.all([hashIn(l.lot_record), l.settlement_record ? hashIn(l.settlement_record) : Promise.resolve(null), api("verify_lot", { name: l.name }, true)])
-        .then(function (res) {
-          var lines = [check(res[0] === l.lot_digest && res[2].lot_record, "Lot record hashes to the digest the cooperative registered")];
-          if (l.settlement_record) lines.push(check(res[1] === l.attest_digest && res[2].settlement_record, "Settlement record matches the on-chain attestation"));
-          verifyOut.replaceChildren.apply(verifyOut, lines);
-        }).catch(fail).finally(function () { verifyBtn.disabled = false; });
+      Promise.all([
+        hashIn(l.lot_record),
+        l.waybill_record ? hashIn(l.waybill_record) : Promise.resolve(null),
+        l.port_receipt_record ? hashIn(l.port_receipt_record) : Promise.resolve(null),
+        l.settlement_record ? hashIn(l.settlement_record) : Promise.resolve(null),
+        api("verify_lot", { name: l.name }, true)
+      ]).then(function (res) {
+        var lines = [check(res[0] === l.lot_digest && res[4].lot_record, "Lot record hashes to the digest the cooperative registered")];
+        if (l.waybill_record) lines.push(check(res[1] === l.waybill_digest && res[4].waybill_record, "Waybill record & seal hash to the logistics dispatch commitment"));
+        if (l.port_receipt_record) lines.push(check(res[2] === l.port_receipt_digest && res[4].port_receipt_record, "Port gate-in record & customs check match on-chain"));
+        if (l.settlement_record) lines.push(check(res[3] === l.attest_digest && res[4].settlement_record, "Settlement record matches the on-chain attestation"));
+        verifyOut.replaceChildren.apply(verifyOut, lines);
+      }).catch(fail).finally(function () { verifyBtn.disabled = false; });
     } } });
 
     setMain(
@@ -560,17 +745,21 @@
       l.last_error ? el("p", { class: "xt-note error", text: "Last attempt failed: " + l.last_error }) : null,
       el("div", { class: "xt-grid-2" },
         el("div", {},
-          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "On-chain timeline" }), el("p", { text: "Each payment links back to the release, the escrow, the inspection and the registration." }))), steps),
-          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("h2", { text: "Parties" })),
+          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "On-chain timeline" }), el("p", { text: "Each step links back to the prior custody, inspection and escrow transactions." }))), steps),
+          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("h2", { text: "Parties & Custody" })),
             el("dl", { class: "xt-kv" },
               el("dt", { text: "Cooperative" }), el("dd", {}, l.cooperative_name || "—", " ", acct(l.cooperative_account)),
               el("dt", { text: "Inspector" }), el("dd", {}, l.inspector_name || "—", " ", acct(l.inspector_account)),
+              l.carrier_name ? el("dt", { text: "Carrier" }) : null, l.carrier_name ? el("dd", {}, l.carrier_name, l.driver_name ? " · " + l.driver_name : "", l.vehicle_plate ? " (" + l.vehicle_plate + ")" : "") : null,
+              l.port_name ? el("dt", { text: "Port Terminal" }) : null, l.port_name ? el("dd", {}, l.port_name, l.container_id ? " · " + l.container_id : "") : null,
               el("dt", { text: "Buyer" }), el("dd", {}, l.buyer_name || "—", " ", acct(l.buyer_account))))),
         el("div", {},
-          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("h2", { text: "Lot" })),
+          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("h2", { text: "Lot & Transport" })),
             el("dl", { class: "xt-kv" },
               el("dt", { text: "Declared" }), el("dd", { text: "Grade " + l.declared_grade + " · " + kg(l.quantity_kg) }),
               el("dt", { text: "Inspected" }), el("dd", { text: l.inspect_tx ? ("Grade " + l.inspected_grade + " · " + kg(l.inspected_quantity_kg) + (l.moisture_pct != null ? " · " + nf1.format(l.moisture_pct) + "% moisture" : "")) : "Not yet" }),
+              l.seal_number ? el("dt", { text: "Seal number" }) : null, l.seal_number ? el("dd", { class: "xt-mono", text: l.seal_number + (l.seal_verified ? " (verified intact ✓)" : "") }) : null,
+              l.destination_port ? el("dt", { text: "Destination" }) : null, l.destination_port ? el("dd", { text: l.destination_port }) : null,
               l.reject_reason ? el("dt", { text: "Rejected for" }) : null, l.reject_reason ? el("dd", { text: l.reject_reason }) : null,
               el("dt", { text: "Escrow" }), el("dd", { text: l.amount_rwf ? rwf(l.amount_rwf) : "—" }),
               el("dt", { text: "On-chain lot id" }), el("dd", { class: "xt-mono", text: l.chain_lot_id || "—" }),
@@ -580,6 +769,8 @@
             verifyOut,
             recordBlock("Lot record", l.lot_record, l.lot_digest),
             l.report_record ? recordBlock("Inspection report", l.report_record, l.report_digest) : null,
+            l.waybill_record ? recordBlock("Logistics waybill", l.waybill_record, l.waybill_digest) : null,
+            l.port_receipt_record ? recordBlock("Port arrival receipt", l.port_receipt_record, l.port_receipt_digest) : null,
             l.settlement_record ? recordBlock("Settlement record", l.settlement_record, l.attest_digest) : null),
           el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("h2", { text: "Contracts" })),
             el("dl", { class: "xt-kv" }, Object.keys(l.contracts).filter(function (k) { return l.contracts[k]; }).map(function (k) {
@@ -601,7 +792,12 @@
   // ---------------------------------------------------------------- boot
   function navCounts(data) {
     var c = data.counts;
-    var badge = { inspect: c.Registered || 0, buy: (c.Approved || 0) + (c.Funded || 0) };
+    var badge = {
+      inspect: c.Registered || 0,
+      logistics: (c.Funded || 0) + (c.Approved || 0),
+      port: c["In Transit"] || 0,
+      buy: (c.Approved || 0) + (c.Funded || 0) + (c["In Transit"] || 0) + (c["At Port"] || 0)
+    };
     Object.keys(badge).forEach(function (k) {
       var tab = root.querySelector('.xt-tab[data-tab="' + k + '"]');
       if (!tab) return;
@@ -620,6 +816,8 @@
       if (PAGE === "overview") renderOverview(data, personas);
       else if (PAGE === "coop") renderCoop(data, personas);
       else if (PAGE === "inspect") renderInspect(data, personas);
+      else if (PAGE === "logistics") renderLogistics(data, personas);
+      else if (PAGE === "port") renderPort(data, personas);
       else if (PAGE === "buy") renderBuy(data, personas);
     };
     var personasP = api("personas");

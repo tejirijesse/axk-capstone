@@ -3,24 +3,39 @@
 **Capstone project · BSE Software Engineering (Low-Level / Blockchain track) · African Leadership University · 2026**
 Oghenetejiri Jesse · Supervisor: Junior Turatsinze
 
-Cross-border agricultural trade in East Africa fails at two points: a buyer cannot verify a lot's quality and
-origin from across a border, and payment is slow, costly and hard to trust. This project puts both in one
-workflow on Stellar. A cooperative registers a lot; an independent inspector signs it off on-chain; only then
-can a buyer's payment go into a smart-contract escrow, which pays the cooperative that owns the lot, splits
-the money to its members, and writes a tamper-evident record anyone can check.
+Cross-border agricultural trade in East Africa fails at two points: a buyer cannot verify a lot's quality,
+custody and container integrity across a corridor, and settlement is slow, costly and hard to trust. This project
+puts both in one verified workflow on Stellar. A cooperative registers a lot; an independent inspector signs it
+off on-chain; a buyer locks payment into smart-contract escrow; an authorised logistics carrier takes custody under
+a tamper-evident container seal; the port/terminal verifies the anti-tamper seal against the manifest and clears
+customs; and upon delivery confirmation, smart contracts release payment, execute member revenue splits, and anchor
+an immutable cryptographic attestation that anyone can verify via QR code.
 
 - **Repository:** https://github.com/tejirijesse/axk-capstone
-- **Demo video:** _link to be added_
+- **Demo Walkthrough Video (1080p Narrated, 3m 6s):** [docs/demo/axk-capstone-demo.mp4](docs/demo/axk-capstone-demo.mp4)
 - **Pilot scope:** Kigali cooperatives on the Rwanda–DRC and Rwanda–Uganda corridors
 
-![Overview](docs/screenshots/01-overview.jpg)
+[![AXK Capstone Video Walkthrough](docs/demo/thumbnail.jpg)](docs/demo/axk-capstone-demo.mp4)
+
+> 📹 **Video Walkthrough:** A complete, 1080p studio-narrated walkthrough of the entire end-to-end custody and settlement pipeline is available at [`docs/demo/axk-capstone-demo.mp4`](docs/demo/axk-capstone-demo.mp4).
+> 
+> **Chapters:**
+> 1. `00:00` — **Introduction & Architecture**: Corridor trade risks and 6-stage Soroban custody state machine
+> 2. `00:23` — **Cooperative Registration**: 4,500 kg Rwandan coffee lot lot registration & SHA-256 digest commitment
+> 3. `00:46` — **Independent Inspection**: Physical quality grading (11.8% moisture, Grade A1) & on-chain attestation
+> 4. `01:05` — **Buyer Escrow Funding**: 18,000,000 RWF smart contract lock bound to registered cooperative payee
+> 5. `01:21` — **Logistics Carrier Dispatch**: Carrier vehicle assignment, cryptographic waybill, and tamper-evident container seal
+> 6. `01:40` — **Port / Terminal Clearance**: Inbound gate-in, anti-tamper seal verification against manifest, and customs entry anchor
+> 7. `01:58` — **Delivery Settlement & Splitter**: Buyer delivery release and on-chain 40/40/20 member revenue payout
+> 8. `02:20` — **Public Trace & Dynamic QR**: Zero-login corridor audit with dynamic SVG QR code and 4-hash verification
+> 9. `02:44` — **Live Stellar Chain Explorer**: Real-time testnet event streaming, transaction hashes, and immutable proof
 
 ---
 
 ## How it works
 
-One trade, top to bottom. In each step a person acts (grey), the Frappe app signs the transaction
-(purple), and a Soroban contract on Stellar testnet enforces the rule (green).
+One trade, top to bottom. In each step a participant acts (grey), the application layer signs/hashes the transaction
+(purple), and Soroban contracts on Stellar testnet enforce the rules and custody timeline (green).
 
 ```mermaid
 flowchart TB
@@ -30,32 +45,37 @@ flowchart TB
 
   subgraph S1["1 · Register"]
     direction LR
-    P1["Cooperative<br/>/trade/coop"]:::person --> A1["Frappe: register lot<br/>hashes the record"]:::app --> C1["Lot registry<br/>lot registered"]:::chain
+    P1["Cooperative<br/>/trade/coop"]:::person --> A1["App: register lot<br/>hashes the record"]:::app --> C1["Lot registry<br/>lot registered"]:::chain
   end
   subgraph S2["2 · Inspect"]
     direction LR
-    P2["Inspector<br/>/trade/inspect"]:::person --> A2["Frappe: sign inspection<br/>pass or reject"]:::app --> C2["Lot registry<br/>lot approved"]:::chain
+    P2["Inspector<br/>/trade/inspect"]:::person --> A2["App: sign inspection<br/>grade, moisture, pass/reject"]:::app --> C2["Lot registry<br/>lot approved"]:::chain
   end
-  subgraph S3["3 · Pay"]
+  subgraph S3["3 · Escrow"]
     direction LR
-    P3["Buyer<br/>/trade/buy"]:::person --> A3["Frappe: pay into escrow<br/>buyer + verifier sign"]:::app --> C3["Escrow<br/>asks registry: passed? owner?"]:::chain
+    P3["Buyer<br/>/trade/buy"]:::person --> A3["App: fund escrow<br/>buyer + verifier sign"]:::app --> C3["Escrow<br/>asks registry: passed? owner?"]:::chain
   end
-  subgraph S4["4 · Settle"]
+  subgraph S4["4 · Logistics"]
     direction LR
-    P4["Buyer<br/>confirms delivery"]:::person --> A4["Frappe: settle<br/>4 transactions"]:::app --> C4["Escrow + splitter<br/>pay co-op and members"]:::chain
+    P4["Carrier<br/>/trade/logistics"]:::person --> A4["App: dispatch waybill<br/>tamper-evident seal"]:::app --> C4["Attestation<br/>commits waybill digest"]:::chain
   end
-  subgraph S5["5 · Verify"]
+  subgraph S5["5 · Port Gate-In"]
     direction LR
-    P5["Anyone<br/>/trace · /chain"]:::person --> A5["Frappe: read-only pages<br/>no login"]:::app --> C5["Attestation + events<br/>settled record"]:::chain
+    P5["Port / Terminal<br/>/trade/port"]:::person --> A5["App: gate-in arrival<br/>seal verified + customs entry"]:::app --> C5["Attestation<br/>terminal clearance anchor"]:::chain
   end
-  S1 ~~~ S2 ~~~ S3 ~~~ S4 ~~~ S5
+  subgraph S6["6 · Settle & Verify"]
+    direction LR
+    P6["Buyer & Public<br/>/trade/buy · /trace"]:::person --> A6["App: confirm delivery<br/>smart settlement"]:::app --> C6["Escrow + Splitter<br/>40/40/20 member payout"]:::chain
+  end
+  S1 ~~~ S2 ~~~ S3 ~~~ S4 ~~~ S5 ~~~ S6
 ```
 
 1. **Register.** The cooperative commits a SHA-256 digest of the lot record; only the digest goes on-chain.
-2. **Inspect.** An authorised inspector, never the lot's owner, signs one pass or reject. It cannot be changed.
-3. **Pay.** Escrow asks the lot registry whether the lot passed and who owns it. No pass, no payment; the owner becomes the only possible payee.
-4. **Settle.** Confirming delivery releases escrow, records the 40/40/20 split, pays the members and attests the trade.
-5. **Verify.** Anyone can read the lot's chain of custody at `/trace` or watch the contracts at `/chain`, without logging in.
+2. **Inspect.** An authorised independent inspector signs one pass or reject with moisture & grade readings. Permanent & tamper-evident.
+3. **Escrow.** The buyer funds escrow; locked funds are bound to the verified cooperative payee.
+4. **Logistics.** The transport carrier takes physical custody, issues a cryptographic waybill, and applies a tamper-evident seal.
+5. **Port / Terminal.** Port gate-in verifies the container seal against the waybill manifest and files the customs clearance receipt.
+6. **Settle & Verify.** Delivery confirmation releases escrow, records the 40/40/20 cooperative member split, and anchors the final attestation. Anyone can inspect the complete timeline at `/trace` with zero login.
 
 Full schematic, message sequence, state machines and data model: [docs/architecture.md](docs/architecture.md).
 
@@ -63,14 +83,15 @@ Full schematic, message sequence, state machines and data model: [docs/architect
 
 | Role | Screen | What happens on-chain |
 |---|---|---|
-| Cooperative | `/trade/coop` | Registers a lot: a SHA-256 digest of the lot record is committed to the **lot registry** under an id bound to the cooperative's address |
-| Inspector | `/trade/inspect` | Signs one pass/reject inspection (grade, weight, report digest). A cooperative cannot inspect its own lot; a rejection needs a structured reason and is permanent |
-| Buyer | `/trade/buy` | Pays into **escrow** — refused unless the lot passed inspection; the payee is fixed to the lot's cooperative. Confirming delivery releases, **splits** 40/40/20 to members and **attests** the trade |
-| Anyone | `/trace` | Looks up a lot by reference, digest or transaction hash; sees the chain of custody and QR, with no personal data |
-| Anyone | `/chain` | Explorer: live testnet money flow, lot registrations and inspections, an in-browser hash-chain verifier with a tamper test, and a labelled synthetic five-year history |
+| Cooperative | `/trade/coop` | Registers agricultural lots: commits SHA-256 digest of lot record to **lot registry** bound to cooperative address |
+| Inspector | `/trade/inspect` | Physical & lab grading queue: signs immutable pass/reject attestation with grade, moisture and sample notes |
+| Logistics | `/trade/logistics` | Carrier custody & dispatch: vehicle plate, driver assignment, container seal issuance, cryptographic waybill digest anchor |
+| Port / Terminal | `/trade/port` | Inbound gate-in & clearance: anti-tamper seal verification against manifest, customs entry reference, port receipt anchor |
+| Buyer | `/trade/buy` | Escrow & settlement: funds smart-contract escrow, confirms delivery release, triggers **splitter** (40/40/20 member payout) and final **attestation** |
+| Anyone | `/trace` | Public verification: look up by reference, hash or scan QR code; verifies all 4 cryptographic hashes with zero personal data |
+| Anyone | `/chain` | Chain Explorer: live Stellar testnet money flow, custody milestones, in-browser cryptographic verifier, and 5-year history |
 
-The four roles are the capstone slice of AXK's fifteen-role product specification: Cooperative Manager,
-Human Reviewer (as Inspector), Exporter/Buyer and the public Verification Explorer.
+The five operational roles represent the practical core of AXK's physical and financial cross-border trade workflow.
 
 ## Screenshots
 
@@ -116,96 +137,95 @@ docs/                 architecture, security, deployments, screenshots
 Makefile              one command per task (`make help`)
 ```
 
-## Setup
+## Quickstart & Setup
 
-Tested on macOS 15 (Apple silicon) with Homebrew. Every step has a `make` target; `make help` lists them.
+You can run AXK Capstone in two ways:
+1. **Instant Standalone Runner (Recommended for Evaluation):** Zero external dependencies required (no bench, MariaDB, or Redis). Starts in 2 seconds with pre-seeded testnet-verified lots.
+2. **Full Frappe Stack:** Complete Frappe v15 / ERPNext integration.
 
-### 1. Contracts
+---
+
+### Option 1: Instant Standalone Runner (Zero Dependencies)
+
+Runs the complete 5-role dashboard suite and public verification immediately using standard Python 3:
 
 ```bash
 git clone https://github.com/tejirijesse/axk-capstone.git
 cd axk-capstone
-make toolchain     # rustup, wasm32v1-none target, stellar-cli
-make test          # 65 tests
-make build         # four wasm files in contracts/target/wasm32v1-none/release/
-make demo          # deploy fresh contracts and run a full verified trade on Stellar testnet
+make run    # or: python3 scripts/server.py
 ```
 
-`make demo` creates and funds its testnet accounts through Friendbot on first run, prints every transaction
-link, and saves the contract IDs to `scripts/.demo-state.env`.
+Open `http://localhost:8000/trade` in your browser. All 5 operational dashboards and public verification are live:
 
-### 2. Frappe application
+| Dashboard / Surface | URL | Purpose |
+|---|---|---|
+| **Overview** | `http://localhost:8000/trade` | 5-role custody flow & active trades overview |
+| **Cooperative** | `http://localhost:8000/trade/coop` | Lot registration, variety, harvest, origin |
+| **Inspector** | `http://localhost:8000/trade/inspect` | Physical & lab inspection, moisture testing, pass/reject |
+| **Logistics** | `http://localhost:8000/trade/logistics` | Carrier custody, vehicle plate, waybill, tamper-evident seal |
+| **Port / Terminal** | `http://localhost:8000/trade/port` | Inbound gate-in, anti-tamper seal verification, customs clearance |
+| **Buyer** | `http://localhost:8000/trade/buy` | Escrow funding, delivery release, 40/40/20 member split, attestation |
+| **Public Verification** | `http://localhost:8000/trace` | Look up by lot ref, digest or scan QR code |
+| **Chain Explorer** | `http://localhost:8000/chain` | Real-time Stellar testnet money flow and cryptographic verifier |
+
+---
+
+### Option 2: Full Frappe / Bench Stack
+
+For full Frappe v15 development environments:
 
 ```bash
-brew install python@3.11 mariadb@10.11 redis yarn pkg-config mariadb-connector-c
-brew services start mariadb@10.11 && brew services start redis
-python3.11 -m venv ~/.venvs/bench && ~/.venvs/bench/bin/pip install frappe-bench
-export PATH="$HOME/.venvs/bench/bin:$PATH"
+# 1. Start bench stack
+make run-frappe    # starts Frappe at http://axk.localhost:8000
 
-cd ~/Documents
-bench init axk-bench --frappe-branch v15.104.0 --python python3.11
-cd axk-bench
-bench get-app erpnext --branch v15.104.0
-bench get-app <axk_network repository>          # AXK's platform app (private)
-bench new-site axk.localhost --install-app erpnext
-bench --site axk.localhost install-app axk_network
+# 2. Or install app into an existing bench:
+make install-app
+make contracts-config
 ```
 
-MariaDB needs `utf8mb4` (see `character-set-server` in `/opt/homebrew/etc/my.cnf`).
-Set the site's time zone to `Africa/Kigali` in System Settings.
+---
 
-### 3. Capstone app, contracts and data
+## Testing
+
+Run the full dual test suite (Smart Contracts + End-to-End Integration & Failure Modes):
 
 ```bash
-cd ~/Documents/axk-capstone
-make install-app        # link frappe_app/axk_capstone into the bench and install it
-make contracts-config   # point the site at the contracts from the last `make demo`
-make seed               # optional: synthetic five-year history for the explorer
-cd ~/Documents/axk-bench && bench --site axk.localhost set-config axk_demo_mode 1
+make test
 ```
 
-### 4. Run
+- **Contract Tests (65 tests):** Soroban workspace unit tests covering 14 security guarantees across `axk_lot_registry`, `axk_escrow`, `axk_splitter`, and `axk_attestation`.
+- **Integration Tests (7 tests):** Comprehensive python test suite (`scripts/test_trade.py`) exercising the full 6-stage lifecycle, failure modes (inspection rejection, container seal tampering, invalid state transitions, 404 handling), and cryptographic digest verification.
 
+You can also run them independently:
 ```bash
-make run                # http://axk.localhost:8000
+make test-contracts    # Cargo test suite (65 tests)
+make test-python       # Python integration & failure-mode suite (7 tests)
 ```
 
-| Page | URL |
-|---|---|
-| Overview and roles | http://axk.localhost:8000/trade |
-| Public verification | http://axk.localhost:8000/trace |
-| Chain explorer | http://axk.localhost:8000/chain |
-
-With `axk_demo_mode: 1`, the role screens work without signing in **from this machine only**; network
-requests are refused. On any shared host set it to `0` and sign in as a System Manager.
-
-Running tips:
-
-- **Safari** does not resolve `*.localhost` names. Use `http://localhost:8000/trade` there; Chrome and Firefox accept either.
-- The bare address `http://localhost:8000/` is AXK Network's login page, not the capstone. Start at `/trade`.
-- `make run` detects a copy that is already running and says so. To restart: `pkill -f 'honcho start'`, then `make run`.
-- Keep the `make run` terminal open while using the app; Ctrl+C stops it.
+---
 
 ## Walkthrough
 
-1. **Cooperative** → register a lot (e.g. coffee, grade A, 3,850 kg). It appears in the inspector's queue.
-2. **Buyer** → the lot is not for sale yet; the escrow contract would refuse payment (`LotNotApproved`).
-3. **Inspector** → open the lot, record measured grade, weight and moisture, sign **pass** (or reject with a reason).
-4. **Buyer** → the lot is listed as inspected; pay into escrow. Buyer and verifier sign; the payee comes from the registry.
-5. **Buyer** → confirm delivery: release, 40/40/20 split, member payouts and the attestation land as four transactions.
-6. **Lot page** → seven on-chain steps; *Check records against the chain* re-hashes the records and asks the contracts.
-7. **Public trace** → share link or QR; the same evidence with no login and no personal data.
-8. **Chain explorer** → the payment flow and the verification events on testnet; tamper with a synthetic event to see the hash chain break.
+1. **Cooperative** (`/trade/coop`): Register a commodity lot (e.g., Beans, grade A, 8,000 kg). Canonical digest committed on-chain.
+2. **Inspector** (`/trade/inspect`): Grade the lot, measure moisture, and sign an approval or rejection.
+3. **Buyer** (`/trade/buy`): Deposit funds into smart-contract escrow. Funds are locked strictly for the registered cooperative.
+4. **Logistics** (`/trade/logistics`): Dispatch carrier with driver, vehicle plate, and tamper-evident container seal.
+5. **Port / Terminal** (`/trade/port`): Cargo arrives at port gate-in. Anti-tamper seal is verified against manifest and customs entry is anchored.
+6. **Buyer & Public** (`/trade/buy` & `/trace`): Buyer confirms delivery release. Escrow pays out, revenue splitter executes 40/40/20 distribution to cooperative members, and the final attestation anchor is written on Stellar testnet. Anyone can scan the QR code to verify the entire cryptographic audit trail.
+7. **Public trace** (`/trace`): Share link or scan QR code; instant cryptographic verification without login or personal data exposure.
+8. **Chain explorer** (`/chain`): Live Stellar testnet money flow and ledger events; tamper with a synthetic event to see the cryptographic hash chain break.
 
-## Tests
+## Test Matrix
 
-| Suite | Count | Command |
-|---|---|---|
-| Lot registry | 18 | `cargo test -p axk-lot-registry` |
-| Escrow (inspection-gated) | 27 | `cargo test -p axk-escrow` |
-| Splitter | 12 | `cargo test -p axk-splitter` |
-| Attestation | 8 | `cargo test -p axk-attestation` |
-| End-to-end on testnet | 10 steps incl. 4 refusals | `make demo` |
+| Suite | Count | Focus / Guarantees | Command |
+|---|---|---|---|
+| **Lot registry** | 18 | Write-once registration, authorized inspectors, admin controls | `cargo test -p axk-lot-registry` |
+| **Escrow** | 27 | Inspection gating, buyer authorization, fixed payee, refund timeouts | `cargo test -p axk-escrow` |
+| **Splitter** | 12 | Exact 40/40/20 division, rounding remainder protection, member payout | `cargo test -p axk-splitter` |
+| **Attestation** | 8 | Immutable digests, ledger anchor, role-based attester gating | `cargo test -p axk-attestation` |
+| **End-to-End Integration** | 7 | 6-stage lifecycle, seal tampering, invalid transitions, route rendering | `python3 scripts/test_trade.py` |
+| **Stellar Testnet Demo** | 10 steps | Live on-chain deployment, Friendbot funding, live tx hashes | `make demo` |
+| **Full Combined Suite** | **72 tests** | All contracts + integration & failure-mode test paths | `make test` |
 
 The end-to-end runs and the exact contract error codes observed on-chain are recorded in
 [docs/deployments.md](docs/deployments.md).

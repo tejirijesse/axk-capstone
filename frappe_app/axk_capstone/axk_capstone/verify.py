@@ -17,10 +17,14 @@ PUBLIC_FIELDS = ["name", "lot_ref", "status", "commodity", "declared_grade", "qu
                  "cooperative_name", "cooperative_account", "chain_lot_id", "lot_digest", "register_tx",
                  "registered_at", "passed", "inspected_grade", "inspected_quantity_kg", "moisture_pct",
                  "reject_reason", "inspector_account", "report_digest", "inspect_tx", "inspected_at",
+                 "carrier_name", "vehicle_plate", "seal_number", "destination_port", "waybill_ref",
+                 "waybill_digest", "dispatch_tx", "dispatched_at",
+                 "port_name", "container_id", "customs_ref", "seal_verified", "port_receipt_digest",
+                 "port_tx", "port_received_at",
                  "buyer_account", "amount_rwf", "trade_id", "fund_tx", "funded_at", "release_tx",
                  "split_tx", "distribute_tx", "attest_digest", "attest_tx", "settled_at",
                  "registry", "escrow", "splitter", "attestation", "token"]
-TX_FIELDS = ["register_tx", "inspect_tx", "fund_tx", "release_tx", "split_tx", "distribute_tx", "attest_tx"]
+TX_FIELDS = ["register_tx", "inspect_tx", "fund_tx", "dispatch_tx", "port_tx", "release_tx", "split_tx", "distribute_tx", "attest_tx"]
 
 
 def search(q):
@@ -29,7 +33,9 @@ def search(q):
     if len(q) < 4:
         return []
     ors = [["lot_ref", "=", q], ["chain_lot_id", "=", q], ["trade_id", "=", q],
-           ["lot_digest", "=", q], ["report_digest", "=", q], ["attest_digest", "=", q]]
+           ["lot_digest", "=", q], ["report_digest", "=", q], ["waybill_digest", "=", q],
+           ["port_receipt_digest", "=", q], ["attest_digest", "=", q],
+           ["waybill_ref", "=", q]]
     ors += [[f, "=", q] for f in TX_FIELDS]
     hits = frappe.get_all(DT, or_filters=ors, fields=["lot_ref", "status", "commodity", "cooperative_name"], limit=10)
     if not hits and len(q) >= 6:
@@ -48,6 +54,8 @@ def public_lot(ref):
         ("Registered by the cooperative", d.register_tx, d.registered_at),
         ("Inspected" + (" · passed" if d.passed else " · rejected" if d.inspect_tx else ""), d.inspect_tx, d.inspected_at),
         ("Payment locked in escrow", d.fund_tx, d.funded_at),
+        ("Dispatched by logistics carrier", d.dispatch_tx, d.dispatched_at),
+        ("Received & cleared at port terminal", d.port_tx, d.port_received_at),
         ("Released to the cooperative", d.release_tx, None),
         ("Split to members recorded", d.split_tx, None),
         ("Members paid", d.distribute_tx, None),

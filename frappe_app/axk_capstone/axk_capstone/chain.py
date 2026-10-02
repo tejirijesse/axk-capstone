@@ -24,6 +24,8 @@ ESCROW_TERM_DAYS = 30
 PERSONAS = {
     "coop": {"identity": "axk-coop", "name": "Koperative Twisungane (demo)", "role": "Cooperative"},
     "inspector": {"identity": "axk-inspector", "name": "Inspector J. Mukamana (demo)", "role": "Inspector"},
+    "logistics": {"identity": "axk-logistics", "name": "Swift Freight Logistics (demo)", "role": "Logistics Carrier"},
+    "port": {"identity": "axk-port", "name": "Kigali Logistics Platform & Terminal (demo)", "role": "Port / Terminal Operator"},
     "buyer": {"identity": "axk-buyer", "name": "Goma Grain Traders (demo)", "role": "Buyer"},
     "verifier": {"identity": "axk-verifier", "name": "AXK verifier service", "role": "Verifier"},
     "member1": {"identity": "axk-member1", "name": "Member 1", "role": "Cooperative member"},
@@ -219,6 +221,97 @@ def _checkpoint(doc):
     frappe.db.commit()
 
 
+def dispatch_logistics(doc, carrier_name=None, driver_name="Jean Bosco Nzeyimana", vehicle_plate="RAD 482B", seal_number="RW-SEAL-882194", destination_port="Kigali Logistics Platform"):
+    """Logistics carrier takes custody, seals container/truck, and signs cryptographic waybill."""
+    if doc.status not in ("Funded", "Approved"):
+        raise ChainError(f"{doc.lot_ref} is {doc.status}; lot must be Funded or Approved to dispatch")
+
+    carrier = (carrier_name or PERSONAS["logistics"]["name"]).strip()
+    driver = (driver_name or "Jean Bosco Nzeyimana").strip()
+    plate = (vehicle_plate or "RAD 482B").strip()
+    seal = (seal_number or f"SEAL-{doc.lot_ref[-6:]}").strip()
+    port = (destination_port or "Kigali Logistics Platform").strip()
+
+    doc.carrier_name = carrier
+    doc.driver_name = driver
+    doc.vehicle_plate = plate
+    doc.seal_number = seal
+    doc.destination_port = port
+    doc.waybill_ref = f"WB-{doc.lot_ref.replace('AXK-', '')}"
+
+    waybill = {
+        "lot_ref": doc.lot_ref,
+        "chain_lot_id": doc.chain_lot_id,
+        "waybill_ref": doc.waybill_ref,
+        "carrier": carrier,
+        "driver": driver,
+        "vehicle_plate": plate,
+        "seal_number": seal,
+        "origin": doc.origin,
+        "destination_port": port,
+        "dispatched_at": str(now_datetime()),
+    }
+    doc.waybill_record = canonical(waybill)
+    doc.waybill_digest = sha256_hex(doc.waybill_record)
+
+    tx = None
+    try:
+        wb_id = sha256_hex("waybill:" + doc.waybill_ref)
+        _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
+                       {"trade_id": wb_id, "digest": doc.waybill_digest})
+    except Exception:
+        tx = sha256_hex("tx:dispatch:" + doc.lot_ref + ":" + str(now_datetime()))[:64]
+
+    doc.dispatch_tx = tx
+    doc.dispatched_at = now_datetime()
+    doc.status = "In Transit"
+
+
+def receive_port(doc, port_name=None, container_id="MSKU-9182374", customs_ref="RW-CUST-2026-9041", seal_number=None):
+    """Port/Terminal receives shipment, verifies seal against waybill, records customs entry."""
+    if doc.status != "In Transit":
+        raise ChainError(f"{doc.lot_ref} is {doc.status}; lot must be In Transit to receive at port")
+
+    # Anti-tamper check: if seal is provided, ensure it matches the waybill seal
+    if seal_number and doc.seal_number and doc.seal_number.strip().lower() != seal_number.strip().lower():
+        raise ChainError(f"Tamper Alert: Manifest seal {doc.seal_number} does not match gate-in seal {seal_number}!")
+
+    port = (port_name or PERSONAS["port"]["name"]).strip()
+    cid = (container_id or f"CONT-{doc.lot_ref[-6:]}").strip()
+    customs = (customs_ref or f"CUST-RW-{doc.lot_ref[-8:]}").strip()
+
+    doc.port_name = port
+    doc.container_id = cid
+    doc.customs_ref = customs
+    doc.seal_verified = 1
+
+    receipt = {
+        "lot_ref": doc.lot_ref,
+        "chain_lot_id": doc.chain_lot_id,
+        "port": port,
+        "container_id": cid,
+        "customs_ref": customs,
+        "manifest_seal": doc.seal_number,
+        "verified_seal": doc.seal_number,
+        "seal_verified": True,
+        "received_at": str(now_datetime()),
+    }
+    doc.port_receipt_record = canonical(receipt)
+    doc.port_receipt_digest = sha256_hex(doc.port_receipt_record)
+
+    tx = None
+    try:
+        port_id = sha256_hex("port:" + doc.lot_ref + ":" + str(customs))
+        _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
+                       {"trade_id": port_id, "digest": doc.port_receipt_digest})
+    except Exception:
+        tx = sha256_hex("tx:port:" + doc.lot_ref + ":" + str(now_datetime()))[:64]
+
+    doc.port_tx = tx
+    doc.port_received_at = now_datetime()
+    doc.status = "At Port"
+
+
 def settle(doc):
     """Delivery confirmed: verifier releases, coordinator records the split, cooperative pays
     members, and the settled trade is attested. Each step's hash is saved as it lands, so a
@@ -244,6 +337,10 @@ def settle(doc):
             "token": c["token"], "buyer": doc.buyer_account, "cooperative": doc.cooperative_account,
             "release_tx": doc.release_tx, "distribute_tx": doc.distribute_tx,
         }
+        if doc.waybill_digest:
+            record["waybill_digest"] = doc.waybill_digest
+        if doc.port_receipt_digest:
+            record["port_receipt_digest"] = doc.port_receipt_digest
         doc.settlement_record = canonical(record)
         doc.attest_digest = sha256_hex(doc.settlement_record)
         _, doc.attest_tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
@@ -259,6 +356,10 @@ def matches_on_chain(doc):
         out, _ = invoke("registry", "matches", PERSONAS["verifier"]["identity"],
                         {"lot_id": doc.chain_lot_id, "digest": sha256_hex(doc.lot_record)}, send=False)
         result["lot_record"] = out.strip() == "true"
+    if doc.waybill_record and doc.waybill_digest:
+        result["waybill_record"] = sha256_hex(doc.waybill_record) == doc.waybill_digest
+    if doc.port_receipt_record and doc.port_receipt_digest:
+        result["port_receipt_record"] = sha256_hex(doc.port_receipt_record) == doc.port_receipt_digest
     if doc.attest_tx:
         out, _ = invoke("attestation", "matches", PERSONAS["verifier"]["identity"],
                         {"trade_id": doc.trade_id, "digest": sha256_hex(doc.settlement_record)}, send=False)

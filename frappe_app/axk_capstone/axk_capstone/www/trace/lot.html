@@ -1,5 +1,5 @@
 {% macro pill(s) -%}
-{%- set m = {"Registered":["registered","○","Awaiting inspection"],"Approved":["approved","✓","Inspected · passed"],"Rejected":["rejected","✕","Inspected · rejected"],"Funded":["funded","◷","In escrow"],"Settled":["settled","●","Settled"],"Refunded":["refunded","↩","Refunded"]} -%}
+{%- set m = {"Registered":["registered","○","Awaiting inspection"],"Approved":["approved","✓","Inspected · passed"],"Rejected":["rejected","✕","Inspected · rejected"],"Funded":["funded","◷","In escrow"],"In Transit":["in-transit","🚚","In transit"],"At Port":["at-port","⚓","At port / terminal"],"Settled":["settled","●","Settled"],"Refunded":["refunded","↩","Refunded"]} -%}
 {%- set v = m.get(s, ["registered","○",s]) -%}
 <span class="xt-pill {{ v[0] }}"><span aria-hidden="true">{{ v[1] }}</span>{{ v[2] }}</span>
 {%- endmacro %}
@@ -19,7 +19,10 @@
       {{ pill(lot.status) }}
     </div>
     <div class="xt-verdict {{ 'ok' if lot.passed else ('bad' if lot.inspect_tx else '') }}">
-      {% if lot.passed %}✓ An authorised inspector passed this lot on-chain{% if lot.attest_tx %}, and its settlement is attested{% endif %}.
+      {% if lot.status == "Settled" %}✓ Trade fully settled, member split executed, and attestation committed on Stellar testnet.
+      {% elif lot.status == "At Port" %}✓ Cargo cleared gate-in at port terminal with verified tamper-evident container seal.
+      {% elif lot.status == "In Transit" %}🚚 Dispatched under active carrier custody and sealed container.
+      {% elif lot.passed %}✓ An authorised inspector passed this lot on-chain{% if lot.attest_tx %}, and its settlement is attested{% endif %}.
       {% elif lot.inspect_tx %}✕ This lot was rejected at inspection{% if lot.reject_reason %}: {{ lot.reject_reason }}{% endif %}. It cannot be sold through AXK escrow.
       {% else %}○ Registered by the cooperative; not yet inspected. It cannot be sold through AXK escrow until it passes.{% endif %}
     </div>
@@ -41,13 +44,19 @@
         </div>
       </div>
       <div>
-        <div class="xt-card"><div class="xt-card-head"><h2>Lot</h2></div>
+        <div class="xt-card"><div class="xt-card-head"><h2>Lot & Transport</h2></div>
           <dl class="xt-kv">
             <dt>Declared</dt><dd>Grade {{ lot.declared_grade }} · {{ "{:,.0f}".format(lot.quantity_kg or 0) }} kg</dd>
             <dt>Inspected</dt><dd>{% if lot.inspect_tx %}Grade {{ lot.inspected_grade }} · {{ "{:,.0f}".format(lot.inspected_quantity_kg or 0) }} kg{% if lot.moisture_pct %} · {{ lot.moisture_pct }}% moisture{% endif %}{% else %}Not yet{% endif %}</dd>
+            {% if lot.carrier_name %}<dt>Carrier</dt><dd>{{ lot.carrier_name }}{% if lot.vehicle_plate %} ({{ lot.vehicle_plate }}){% endif %}</dd>{% endif %}
+            {% if lot.seal_number %}<dt>Seal</dt><dd class="xt-mono">{{ lot.seal_number }}{% if lot.seal_verified %} · intact ✓{% endif %}</dd>{% endif %}
+            {% if lot.port_name %}<dt>Port Terminal</dt><dd>{{ lot.port_name }}{% if lot.container_id %} · {{ lot.container_id }}{% endif %}</dd>{% endif %}
+            {% if lot.customs_ref %}<dt>Customs Ref</dt><dd class="xt-mono">{{ lot.customs_ref }}</dd>{% endif %}
             <dt>On-chain lot id</dt><dd class="xt-mono">{{ lot.chain_lot_id }}</dd>
             <dt>Lot record sha256</dt><dd class="xt-mono">{{ lot.lot_digest }}</dd>
-            {% if lot.report_digest %}<dt>Inspection report sha256</dt><dd class="xt-mono">{{ lot.report_digest }}</dd>{% endif %}
+            {% if lot.report_digest %}<dt>Inspection sha256</dt><dd class="xt-mono">{{ lot.report_digest }}</dd>{% endif %}
+            {% if lot.waybill_digest %}<dt>Waybill sha256</dt><dd class="xt-mono">{{ lot.waybill_digest }}</dd>{% endif %}
+            {% if lot.port_receipt_digest %}<dt>Port receipt sha256</dt><dd class="xt-mono">{{ lot.port_receipt_digest }}</dd>{% endif %}
             {% if lot.attest_digest %}<dt>Settlement sha256</dt><dd class="xt-mono">{{ lot.attest_digest }}</dd>{% endif %}
           </dl>
         </div>
