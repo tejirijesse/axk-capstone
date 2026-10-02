@@ -34,7 +34,7 @@ if TEMP_DIR.exists():
     shutil.rmtree(TEMP_DIR)
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-NARRATION_VOICE = "Daniel"  # Professional British English voice on macOS
+NARRATION_VOICE = "en-NG-AbeoNeural"  # Natural Nigerian Neural Voice
 
 SCENES = [
     {
@@ -129,7 +129,7 @@ SCENES = [
         "title": "Chain Explorer & Conclusion",
         "text": (
             "Finally, the Chain Explorer monitors live money flow and verification events on Stellar testnet. "
-            "The complete solution includes 72 passing automated tests and a zero-dependency standalone runner. "
+            "The complete solution includes 72 passing contract and integration tests with a zero-dependency standalone runner. "
             "AXK Network delivers a practical, verifiable, and secure foundation for cross-border trade in Africa."
         ),
         "url": "http://localhost:8000/chain",
@@ -139,14 +139,16 @@ SCENES = [
 
 def generate_audio(scene):
     sid = scene["id"]
-    aiff_path = TEMP_DIR / f"{sid}.aiff"
+    mp3_path = TEMP_DIR / f"{sid}.mp3"
     m4a_path = TEMP_DIR / f"{sid}.m4a"
     txt = scene["text"]
 
-    print(f"  [TTS] Generating voiceover for {sid}...")
-    subprocess.run(["say", "-v", NARRATION_VOICE, "-r", "175", txt, "-o", str(aiff_path)], check=True)
+    print(f"  [Neural Voice] Synthesizing {sid} ({NARRATION_VOICE})...")
+    uv_bin = shutil.which("uv") or "/Users/joe/.local/bin/uv"
+    cmd = [uv_bin, "tool", "run", "edge-tts", "--voice", NARRATION_VOICE, "--text", txt, "--write-media", str(mp3_path)]
+    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run([
-        "ffmpeg", "-y", "-i", str(aiff_path),
+        "ffmpeg", "-y", "-i", str(mp3_path),
         "-c:a", "aac", "-b:a", "192k", str(m4a_path)
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -155,7 +157,7 @@ def generate_audio(scene):
         "-of", "default=noprint_wrappers=1:nokey=1", str(m4a_path)
     ], capture_output=True, text=True, check=True)
     duration = float(res.stdout.strip())
-    print(f"  [TTS] {sid} duration: {duration:.2f}s")
+    print(f"  [Neural Voice] {sid} duration: {duration:.2f}s")
     return m4a_path, duration
 
 
