@@ -1,0 +1,36 @@
+name: Bug report
+description: Something does not work as described.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Cooperative, Inspector, Buyer / escrow, Logistics, Port, Settlement, Public trace, Chain explorer, Contracts, Setup / tooling, Docs]
+    validations: { required: true }
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Running
+      options: ["Full stack (make run-frappe, Stellar testnet)", "Offline simulation (make run)", "Contracts only (cargo test)"]
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: Steps to reproduce. Include the lot reference or transaction hash if there is one.
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations: { required: true }
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Error messages, screenshots, or the relevant part of the server log.
+    validations: { required: true }
+  - type: markdown
+    attributes:
+      value: "Never paste a secret key, seed phrase or password into an issue."

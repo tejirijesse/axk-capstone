@@ -12,23 +12,11 @@ customs; and upon delivery confirmation, smart contracts release payment, execut
 an immutable cryptographic attestation that anyone can verify via QR code.
 
 - **Repository:** https://github.com/tejirijesse/axk-capstone
-- **Demo Walkthrough Video (1080p Narrated, 3m 6s):** [docs/demo/axk-capstone-demo.mp4](docs/demo/axk-capstone-demo.mp4)
-- **Pilot scope:** Kigali cooperatives on the Rwanda–DRC and Rwanda–Uganda corridors
-
-[![AXK Capstone Video Walkthrough](docs/demo/thumbnail.jpg)](docs/demo/axk-capstone-demo.mp4)
-
-> 📹 **Video Walkthrough:** A complete, 1080p studio-narrated walkthrough of the entire end-to-end custody and settlement pipeline is available at [`docs/demo/axk-capstone-demo.mp4`](docs/demo/axk-capstone-demo.mp4).
-> 
-> **Chapters:**
-> 1. `00:00` — **Introduction & Architecture**: Corridor trade risks and 6-stage Soroban custody state machine
-> 2. `00:23` — **Cooperative Registration**: 4,500 kg Rwandan coffee lot lot registration & SHA-256 digest commitment
-> 3. `00:46` — **Independent Inspection**: Physical quality grading (11.8% moisture, Grade A1) & on-chain attestation
-> 4. `01:05` — **Buyer Escrow Funding**: 18,000,000 RWF smart contract lock bound to registered cooperative payee
-> 5. `01:21` — **Logistics Carrier Dispatch**: Carrier vehicle assignment, cryptographic waybill, and tamper-evident container seal
-> 6. `01:40` — **Port / Terminal Clearance**: Inbound gate-in, anti-tamper seal verification against manifest, and customs entry anchor
-> 7. `01:58` — **Delivery Settlement & Splitter**: Buyer delivery release and on-chain 40/40/20 member revenue payout
-> 8. `02:20` — **Public Trace & Dynamic QR**: Zero-login corridor audit with dynamic SVG QR code and 4-hash verification
-> 9. `02:44` — **Live Stellar Chain Explorer**: Real-time testnet event streaming, transaction hashes, and immutable proof
+- **Open source:** MIT licensed and open to contributions — see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+  step-by-step [ROADMAP.md](ROADMAP.md) (starter to advanced items for every stage of the trade).
+- **Demo video:** link to be added (video files are not stored in the repository).
+- **Pilot scope (planned):** Kigali cooperatives on the Rwanda–DRC and Rwanda–Uganda corridors. The field pilot
+  has not been run yet; nothing in this repository is pilot evidence.
 
 ---
 
@@ -115,7 +103,7 @@ The five operational roles represent the practical core of AXK's physical and fi
 | Smart contracts | Rust, Soroban (`soroban-sdk` 22), `wasm32v1-none` — lot registry, escrow, splitter, attestation |
 | Chain | Stellar testnet; RWF test token (Stellar Asset Contract) as the local-currency stand-in |
 | Signing | `stellar-cli` 28, custodial per-role testnet identities |
-| Application | Frappe v15 + ERPNext v15, Python 3.11, MariaDB 10.11, Redis |
+| Application | Frappe v15 (ERPNext not required), Python 3.11, MariaDB 10.11, Redis |
 | Frontend | Frappe web pages, vanilla JavaScript, hand-built SVG charts (no chart library) |
 | Chain reads | `stellar-sdk` (Python) against Soroban RPC |
 
@@ -133,57 +121,75 @@ frappe_app/axk_capstone/
 axk_seed/             synthetic five-year dataset + importer (labelled synthetic everywhere)
 scripts/demo.sh       deploys fresh contracts and runs one verified trade on testnet
 scripts/run-frappe.sh starts the local Frappe stack
-docs/                 architecture, security, deployments, screenshots
+scripts/server.py     offline simulation of the screens (no blockchain)
+scripts/test_trade.py end-to-end lifecycle and failure-mode tests
+docs/                 architecture, security, deployments, history dataset, screenshots
+.github/              issue and pull request templates
+ROADMAP.md            step-by-step contribution tracks for every stage of the trade
+CONTRIBUTING.md       setup, workflow and project rules
 Makefile              one command per task (`make help`)
 ```
 
 ## Quickstart & Setup
 
-You can run AXK Capstone in two ways:
-1. **Instant Standalone Runner (Recommended for Evaluation):** Zero external dependencies required (no bench, MariaDB, or Redis). Starts in 2 seconds with pre-seeded testnet-verified lots.
-2. **Full Frappe Stack:** Complete Frappe v15 / ERPNext integration.
+There are two ways to run it. Only the full stack touches the blockchain.
 
----
-
-### Option 1: Instant Standalone Runner (Zero Dependencies)
-
-Runs the complete 5-role dashboard suite and public verification immediately using standard Python 3:
-
-```bash
-git clone https://github.com/tejirijesse/axk-capstone.git
-cd axk-capstone
-make run    # or: python3 scripts/server.py
-```
-
-Open `http://localhost:8000/trade` in your browser. All 5 operational dashboards and public verification are live:
-
-| Dashboard / Surface | URL | Purpose |
+| | Full stack — **use this to evaluate** | Offline simulation |
 |---|---|---|
-| **Overview** | `http://localhost:8000/trade` | 5-role custody flow & active trades overview |
-| **Cooperative** | `http://localhost:8000/trade/coop` | Lot registration, variety, harvest, origin |
-| **Inspector** | `http://localhost:8000/trade/inspect` | Physical & lab inspection, moisture testing, pass/reject |
-| **Logistics** | `http://localhost:8000/trade/logistics` | Carrier custody, vehicle plate, waybill, tamper-evident seal |
-| **Port / Terminal** | `http://localhost:8000/trade/port` | Inbound gate-in, anti-tamper seal verification, customs clearance |
-| **Buyer** | `http://localhost:8000/trade/buy` | Escrow funding, delivery release, 40/40/20 member split, attestation |
-| **Public Verification** | `http://localhost:8000/trace` | Look up by lot ref, digest or scan QR code |
-| **Chain Explorer** | `http://localhost:8000/chain` | Real-time Stellar testnet money flow and cryptographic verifier |
+| Command | `make run-frappe` | `make run` |
+| Blockchain | Every action is a real Stellar testnet transaction | **None.** Hashes are computed locally and shown as *simulated* |
+| Needs | Frappe v15 bench, MariaDB, Redis, Rust, stellar-cli | Python 3 only |
+| Good for | Seeing the real system; anything touching contracts or `chain.py` | A quick look at the screens; UI contributions |
 
----
+### Full stack (Stellar testnet)
 
-### Option 2: Full Frappe / Bench Stack
-
-For full Frappe v15 development environments:
+Tested on macOS 15 (Apple silicon) with Homebrew. ERPNext and AXK's platform app are **not** needed.
 
 ```bash
-# 1. Start bench stack
-make run-frappe    # starts Frappe at http://axk.localhost:8000
+git clone https://github.com/tejirijesse/axk-capstone.git && cd axk-capstone
 
-# 2. Or install app into an existing bench:
+# 1. contracts
+make toolchain          # rustup, wasm32v1-none, stellar-cli
+make test-contracts     # 65 tests
+make build
+make demo               # deploys fresh contracts + funded testnet accounts, runs one verified trade
+
+# 2. a Frappe v15 bench (once): https://frappeframework.com/docs/user/en/installation
+#    bench init axk-bench --frappe-branch version-15 && cd axk-bench
+#    bench new-site axk.localhost && bench use axk.localhost
+
+# 3. the app, pointed at the contracts from `make demo`
 make install-app
 make contracts-config
+bench --site axk.localhost set-config axk_demo_mode 1   # local development only
+
+# 4. run
+make run-frappe         # http://localhost:8000/trade
 ```
 
----
+Demo mode lets the screens sign without logging in, **only for requests made directly on your own machine**;
+anything arriving through a proxy or tunnel is refused. Turn it off on any shared host.
+
+### Offline simulation (no blockchain)
+
+```bash
+make run                # or: python3 scripts/server.py — http://localhost:8000/trade
+```
+
+The same screens with locally generated sample data. It signs nothing and says so on every page.
+
+### Pages
+
+| Page | URL |
+|---|---|
+| Overview | `http://localhost:8000/trade` |
+| Cooperative · Inspector · Buyer | `/trade/coop` · `/trade/inspect` · `/trade/buy` |
+| Logistics · Port / Terminal | `/trade/logistics` · `/trade/port` |
+| Public verification (no login) | `/trace` |
+| Chain explorer | `/chain` |
+
+Safari does not resolve `*.localhost`; use `http://localhost:8000`. The bare `/` on a site that also runs AXK's
+platform app is that app's login page, not the capstone.
 
 ## Testing
 
@@ -194,7 +200,7 @@ make test
 ```
 
 - **Contract Tests (65 tests):** Soroban workspace unit tests covering 14 security guarantees across `axk_lot_registry`, `axk_escrow`, `axk_splitter`, and `axk_attestation`.
-- **Integration Tests (7 tests):** Comprehensive python test suite (`scripts/test_trade.py`) exercising the full 6-stage lifecycle, failure modes (inspection rejection, container seal tampering, invalid state transitions, 404 handling), and cryptographic digest verification.
+- **Integration Tests (7 tests):** `scripts/test_trade.py` exercises the full 6-stage lifecycle and failure modes (inspection rejection, container seal tampering, invalid state transitions, unknown lots) against whatever is serving `localhost:8000`. Against the full stack every step is a real testnet transaction; against the simulation nothing is.
 
 You can also run them independently:
 ```bash
@@ -223,7 +229,7 @@ make test-python       # Python integration & failure-mode suite (7 tests)
 | **Escrow** | 27 | Inspection gating, buyer authorization, fixed payee, refund timeouts | `cargo test -p axk-escrow` |
 | **Splitter** | 12 | Exact 40/40/20 division, rounding remainder protection, member payout | `cargo test -p axk-splitter` |
 | **Attestation** | 8 | Immutable digests, ledger anchor, role-based attester gating | `cargo test -p axk-attestation` |
-| **End-to-End Integration** | 7 | 6-stage lifecycle, seal tampering, invalid transitions, route rendering | `python3 scripts/test_trade.py` |
+| **End-to-End Integration** | 7 | 6-stage lifecycle, seal tampering, invalid transitions, route rendering (against the server on :8000) | `python3 scripts/test_trade.py` |
 | **Stellar Testnet Demo** | 10 steps | Live on-chain deployment, Friendbot funding, live tx hashes | `make demo` |
 | **Full Combined Suite** | **72 tests** | All contracts + integration & failure-mode test paths | `make test` |
 
@@ -267,7 +273,26 @@ followed by `bench --site <site> migrate && bench build`.
 The five-year history on `/chain` (646 lots, 5,258 verification events, 549 orders, 176 escrows) is
 **synthetic seed data** generated to populate the demo. Every row is tagged `axk_synthetic_seed = 1` and every
 screen that shows it says so. It is not pilot evidence and no finding in the capstone report is drawn from it.
-Everything under `/trade` and `/trace`, and the live sections of `/chain`, are real Stellar testnet transactions.
+On the full stack, everything under `/trade` and `/trace`, and the live sections of `/chain`, are real Stellar
+testnet transactions; if a chain call fails, the step fails and nothing is recorded.
+
+The offline simulation (`make run`) is different: its lots and hashes are generated locally, it is labelled
+*Offline simulation · not on-chain* on every page, and it never links a hash to a block explorer.
+
+The optional five-year history needs DocTypes from AXK's platform app; on a plain Frappe site the explorer
+explains that it is not installed. See [docs/history-dataset.md](docs/history-dataset.md).
+
+## Contributing
+
+AXK Capstone is open source and built to be extended one step at a time. Every stage of the trade —
+cooperative, inspector, buyer, logistics, port, settlement, public trace — has a track in
+[ROADMAP.md](ROADMAP.md), from 🟢 starter tasks (a refund button, copy buttons, translations) to 🔴 contract work
+(disputes, two-party custody handoffs, quorum inspection).
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — setup, workflow, tests, and the rules that are not negotiable
+  (data honesty, no secrets, testnet only)
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [SECURITY.md](SECURITY.md) · [GOVERNANCE.md](GOVERNANCE.md) ·
+  [CHANGELOG.md](CHANGELOG.md)
 
 ## Provenance
 

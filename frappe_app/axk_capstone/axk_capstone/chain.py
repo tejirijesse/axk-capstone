@@ -255,9 +255,8 @@ def dispatch_logistics(doc, carrier_name=None, driver_name="Jean Bosco Nzeyimana
     doc.waybill_digest = sha256_hex(doc.waybill_record)
 
     # A failed attestation must fail the step: never record a hash that is not on-chain.
-    wb_id = sha256_hex("waybill:" + doc.waybill_ref)
     _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
-                   {"trade_id": wb_id, "digest": doc.waybill_digest})
+                   {"trade_id": waybill_attestation_id(doc), "digest": doc.waybill_digest})
 
     doc.dispatch_tx = tx
     doc.dispatched_at = now_datetime()
@@ -296,9 +295,8 @@ def receive_port(doc, port_name=None, container_id="MSKU-9182374", customs_ref="
     doc.port_receipt_record = canonical(receipt)
     doc.port_receipt_digest = sha256_hex(doc.port_receipt_record)
 
-    port_id = sha256_hex("port:" + doc.lot_ref + ":" + str(customs))
     _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
-                   {"trade_id": port_id, "digest": doc.port_receipt_digest})
+                   {"trade_id": port_attestation_id(doc), "digest": doc.port_receipt_digest})
 
     doc.port_tx = tx
     doc.port_received_at = now_datetime()
@@ -342,6 +340,14 @@ def settle(doc):
     doc.status = "Settled"
 
 
+def waybill_attestation_id(doc):
+    return sha256_hex("waybill:" + doc.waybill_ref)
+
+
+def port_attestation_id(doc):
+    return sha256_hex("port:" + doc.lot_ref + ":" + str(doc.customs_ref))
+
+
 def matches_on_chain(doc):
     """Ask the contracts whether the stored records still hash to what was committed."""
     result = {}
@@ -349,10 +355,14 @@ def matches_on_chain(doc):
         out, _ = invoke("registry", "matches", PERSONAS["verifier"]["identity"],
                         {"lot_id": doc.chain_lot_id, "digest": sha256_hex(doc.lot_record)}, send=False)
         result["lot_record"] = out.strip() == "true"
-    if doc.waybill_record and doc.waybill_digest:
-        result["waybill_record"] = sha256_hex(doc.waybill_record) == doc.waybill_digest
-    if doc.port_receipt_record and doc.port_receipt_digest:
-        result["port_receipt_record"] = sha256_hex(doc.port_receipt_record) == doc.port_receipt_digest
+    if doc.dispatch_tx and doc.waybill_record:
+        out, _ = invoke("attestation", "matches", PERSONAS["verifier"]["identity"],
+                        {"trade_id": waybill_attestation_id(doc), "digest": sha256_hex(doc.waybill_record)}, send=False)
+        result["waybill_record"] = out.strip() == "true"
+    if doc.port_tx and doc.port_receipt_record:
+        out, _ = invoke("attestation", "matches", PERSONAS["verifier"]["identity"],
+                        {"trade_id": port_attestation_id(doc), "digest": sha256_hex(doc.port_receipt_record)}, send=False)
+        result["port_receipt_record"] = out.strip() == "true"
     if doc.attest_tx:
         out, _ = invoke("attestation", "matches", PERSONAS["verifier"]["identity"],
                         {"trade_id": doc.trade_id, "digest": sha256_hex(doc.settlement_record)}, send=False)

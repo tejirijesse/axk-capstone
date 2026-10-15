@@ -1,0 +1,39 @@
+name: Feature or roadmap item
+description: Propose a feature, or claim an item from ROADMAP.md.
+labels: ["enhancement"]
+body:
+  - type: input
+    id: roadmap
+    attributes:
+      label: Roadmap ID
+      description: e.g. BUY-1. Leave empty for a new idea.
+  - type: dropdown
+    id: level
+    attributes:
+      label: Level
+      options: ["🟢 Starter", "🟡 Intermediate", "🔴 Advanced (needs a design note first)"]
+    validations: { required: true }
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who is affected and what goes wrong for them today?
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you want to build. For contract changes, the new rule and how it keeps the existing guarantees in docs/security.md.
+    validations: { required: true }
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: How a reviewer can tell it works.
+    validations: { required: true }
+  - type: checkboxes
+    id: claim
+    attributes:
+      label: Claim
+      options:
+        - label: I would like to work on this myself.

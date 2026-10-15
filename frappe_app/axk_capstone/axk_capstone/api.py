@@ -2,7 +2,8 @@
 
 Two sources, never mixed:
 - `live_chain`   real Stellar testnet events for the capstone contracts
-- `ledger_*`     the synthetic seed history in axk_network (rows tagged axk_synthetic_seed)
+- `ledger_*`     the optional synthetic seed history (rows tagged axk_synthetic_seed), present only
+                 when the site has the seed DocTypes; otherwise these return {"available": False}
 """
 
 import frappe
@@ -36,8 +37,24 @@ def live_chain():
         return {"error": f"Stellar testnet unavailable: {e.__class__.__name__}"}
 
 
+HISTORY_DOCTYPES = ("Lot", "Verification Event", "AXK Order", "Escrow Contract")
+HISTORY_UNAVAILABLE = {
+    "available": False,
+    "reason": "The synthetic five-year history is optional and is not installed on this site.",
+    "docs": "docs/history-dataset.md",
+}
+
+
+def history_available():
+    """The history DocTypes come from AXK's platform app, which is not open source. The live
+    trade flow never needs them; only the explorer's history section does."""
+    return all(frappe.db.table_exists(dt) for dt in HISTORY_DOCTYPES) and frappe.db.has_column("Lot", SYNTH)
+
+
 @frappe.whitelist(allow_guest=True)
 def ledger_overview():
+    if not history_available():
+        return HISTORY_UNAVAILABLE
     sql = frappe.db.sql
     lots = sql(f"select count(*), sum(xrpl_tx_hash is not null and xrpl_tx_hash != '') from tabLot where {SYNTH}=1")[0]
     events = sql(f"select count(*), sum(anchor_chain='xahau') from `tabVerification Event` where {SYNTH}=1")[0]
@@ -90,6 +107,7 @@ def ledger_overview():
                           where l.{SYNTH}=1 group by l.name order by l.aggregation_date desc limit 60""")
 
     return {
+        "available": True,
         "synthetic": True,
         "tiles": {
             "lots": lots[0], "lots_anchored": int(lots[1] or 0),
@@ -110,6 +128,8 @@ def ledger_overview():
 
 @frappe.whitelist(allow_guest=True)
 def lot_chain(lot):
+    if not history_available():
+        return HISTORY_UNAVAILABLE
     if not frappe.db.exists("Lot", {"name": lot, SYNTH: 1}):
         frappe.throw("Unknown lot", frappe.DoesNotExistError)
     lot_doc = frappe.db.get_value("Lot", lot, ["name", "commodity_type", "cooperative_name", "grade",

@@ -80,8 +80,13 @@
     });
   }
 
+  // The standalone runner (scripts/server.py) reports network "offline-simulation": nothing
+  // is sent to Stellar there, so the screens must not say they are signing on-chain.
+  function isSim() { return META && META.network === "offline-simulation"; }
+
   var busy = document.getElementById("xt-busy");
   function withBusy(title, text, promise) {
+    if (isSim()) { title = "Simulating (offline)"; text = "Offline simulation: nothing is sent to Stellar. Run make run-frappe for real testnet transactions."; }
     document.getElementById("xt-busy-title").textContent = title;
     document.getElementById("xt-busy-text").textContent = text;
     busy.hidden = false;
@@ -233,7 +238,7 @@
           el("div", { class: "xt-role-foot" }, el("span", {}, el("b", { text: String(r.count) }), " " + r.countLabel), el("span", { text: "Open →" })));
       })),
       el("div", { class: "xt-card xt-section-gap" },
-        el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Lifecycle" }), el("p", { text: "Live lots on Stellar testnet, by stage." }))),
+        el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Lifecycle" }), el("p", { text: isSim() ? "Sample lots in the offline simulation, by stage." : "Live lots on Stellar testnet, by stage." }))),
         el("div", { class: "xt-flow" },
           flowStep(c.Registered || 0, "Registered", "waiting for inspection"),
           flowStep((c.Approved || 0) + (c.Rejected || 0) + (c.Funded || 0) + (c["In Transit"] || 0) + (c["At Port"] || 0) + (c.Settled || 0), "Inspected", (c.Rejected || 0) + " rejected"),
@@ -680,7 +685,7 @@
       var out = {
         schema: "axk.verified-record/1",
         generated_at: new Date().toISOString(),
-        network: "stellar-testnet",
+        network: isSim() ? "offline-simulation (not on-chain)" : "stellar-testnet",
         lot_ref: l.lot_ref, status: l.status, chain_lot_id: l.chain_lot_id,
         public_verification: shareLink(l),
         lot: { record: safeJSON(l.lot_record), sha256: l.lot_digest },
@@ -714,12 +719,15 @@
       return el("li", { class: "xt-step" + (done ? (bad ? " failed" : " done") : "") },
         el("div", { class: "xt-step-dot", "aria-hidden": "true", text: done ? (bad ? "✕" : "✓") : String(i + 1) }),
         el("div", { class: "xt-step-body" }, el("b", { text: s.label }),
-          done ? el("div", {}, el("a", { href: s.url, target: "_blank", rel: "noopener", text: short(s.tx, 10) + " ↗" }), s.at && s.at !== "None" ? " · " + when(s.at) : "")
+          done ? el("div", {}, s.url
+              ? el("a", { href: s.url, target: "_blank", rel: "noopener", text: short(s.tx, 10) + " ↗" })
+              : el("span", { class: "xt-mono", text: short(s.tx, 10) + " · simulated" }),
+            s.at && s.at !== "None" ? " · " + when(s.at) : "")
             : el("div", { text: "Not yet" })));
     }));
 
     var verifyOut = el("div", { "aria-live": "polite" });
-    var verifyBtn = el("button", { class: "xt-btn ghost small", type: "button", text: "Check records against the chain", on: { click: function () {
+    var verifyBtn = el("button", { class: "xt-btn ghost small", type: "button", text: isSim() ? "Check records (local hashes)" : "Check records against the chain", on: { click: function () {
       verifyBtn.disabled = true;
       Promise.all([
         hashIn(l.lot_record),
@@ -728,10 +736,10 @@
         l.settlement_record ? hashIn(l.settlement_record) : Promise.resolve(null),
         api("verify_lot", { name: l.name }, true)
       ]).then(function (res) {
-        var lines = [check(res[0] === l.lot_digest && res[4].lot_record, "Lot record hashes to the digest the cooperative registered")];
-        if (l.waybill_record) lines.push(check(res[1] === l.waybill_digest && res[4].waybill_record, "Waybill record & seal hash to the logistics dispatch commitment"));
-        if (l.port_receipt_record) lines.push(check(res[2] === l.port_receipt_digest && res[4].port_receipt_record, "Port gate-in record & customs check match on-chain"));
-        if (l.settlement_record) lines.push(check(res[3] === l.attest_digest && res[4].settlement_record, "Settlement record matches the on-chain attestation"));
+        var lines = [check(res[0] === l.lot_digest && res[4].lot_record, isSim() ? "Lot record hashes to its stored digest" : "Lot record hashes to the digest the cooperative registered on-chain")];
+        if (l.waybill_record) lines.push(check(res[1] === l.waybill_digest && res[4].waybill_record, isSim() ? "Waybill record hashes to its stored digest" : "Waybill record matches the on-chain dispatch attestation"));
+        if (l.port_receipt_record) lines.push(check(res[2] === l.port_receipt_digest && res[4].port_receipt_record, isSim() ? "Port receipt hashes to its stored digest" : "Port receipt matches the on-chain clearance attestation"));
+        if (l.settlement_record) lines.push(check(res[3] === l.attest_digest && res[4].settlement_record, isSim() ? "Settlement record hashes to its stored digest" : "Settlement record matches the on-chain attestation"));
         verifyOut.replaceChildren.apply(verifyOut, lines);
       }).catch(fail).finally(function () { verifyBtn.disabled = false; });
     } } });
@@ -745,7 +753,7 @@
       l.last_error ? el("p", { class: "xt-note error", text: "Last attempt failed: " + l.last_error }) : null,
       el("div", { class: "xt-grid-2" },
         el("div", {},
-          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "On-chain timeline" }), el("p", { text: "Each step links back to the prior custody, inspection and escrow transactions." }))), steps),
+          el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: isSim() ? "Timeline (simulated)" : "On-chain timeline" }), el("p", { text: isSim() ? "Offline simulation: these steps were not sent to Stellar." : "Each step links back to the prior custody, inspection and escrow transactions." }))), steps),
           el("div", { class: "xt-card" }, el("div", { class: "xt-card-head" }, el("h2", { text: "Parties & Custody" })),
             el("dl", { class: "xt-kv" },
               el("dt", { text: "Cooperative" }), el("dd", {}, l.cooperative_name || "—", " ", acct(l.cooperative_account)),
@@ -762,10 +770,10 @@
               l.destination_port ? el("dt", { text: "Destination" }) : null, l.destination_port ? el("dd", { text: l.destination_port }) : null,
               l.reject_reason ? el("dt", { text: "Rejected for" }) : null, l.reject_reason ? el("dd", { text: l.reject_reason }) : null,
               el("dt", { text: "Escrow" }), el("dd", { text: l.amount_rwf ? rwf(l.amount_rwf) : "—" }),
-              el("dt", { text: "On-chain lot id" }), el("dd", { class: "xt-mono", text: l.chain_lot_id || "—" }),
+              el("dt", { text: isSim() ? "Lot id (simulated)" : "On-chain lot id" }), el("dd", { class: "xt-mono", text: l.chain_lot_id || "—" }),
               l.inspection_notes ? el("dt", { text: "Inspector notes" }) : null, l.inspection_notes ? el("dd", { text: l.inspection_notes }) : null)),
           el("div", { class: "xt-card" },
-            el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Records and digests" }), el("p", { text: "Only the digests are on-chain. Your browser re-hashes the records; the contracts confirm the match." })), verifyBtn),
+            el("div", { class: "xt-card-head" }, el("div", {}, el("h2", { text: "Records and digests" }), el("p", { text: isSim() ? "Offline simulation: your browser re-hashes the records and compares them with the stored digests. Nothing is checked on-chain." : "Only the digests are on-chain. Your browser re-hashes the records; the contracts confirm the match." })), verifyBtn),
             verifyOut,
             recordBlock("Lot record", l.lot_record, l.lot_digest),
             l.report_record ? recordBlock("Inspection report", l.report_record, l.report_digest) : null,

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/tejirijesse/axk-capstone/security/advisories/new
+    about: Please report vulnerabilities privately, not in a public issue.
+  - name: Roadmap
+    url: https://github.com/tejirijesse/axk-capstone/blob/main/ROADMAP.md
+    about: Pick a roadmap item to work on.

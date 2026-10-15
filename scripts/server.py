@@ -75,7 +75,7 @@ def load_demo_state():
         "splitter": "CBNFE7UAGHRQT4ONA7NJZG2X4IP4VGSCXQOO3LPAM2S3OY36BZWEWWRM",
         "attestation": "CA3TVLODXQOQYI2DYJGAIWOJLHSTM2TYYUFXL3OSHRLGPSVHYADGQADO",
         "token": "CCXUEVJDKHMM5F2WTNCSB3MYET5WU5MNGWL4OLCUH2LY3MSY3ZWI6AEK",
-        "network": "testnet"
+        "network": "offline-simulation"
     }
     if STATE_ENV.exists():
         with open(STATE_ENV, "r", encoding="utf-8") as f:
@@ -197,7 +197,7 @@ def seed_data(conn):
     demo = DEMO_STATE
     now = now_iso()
 
-    # 1. Live settled lot from testnet run
+    # 1. Sample settled lot (simulated; hashes are computed locally, not on-chain)
     lot1_ref = "AXK-KGL-COFFEE-20261001223155"
     lot1_rec = canonical({
         "commodity": "Coffee (parchment)", "cooperative": PERSONAS["coop"]["address"],
@@ -229,7 +229,7 @@ def seed_data(conn):
     })
 
     lots = [
-        # Lot 1: Settled (Full custody chain, testnet verified)
+        # Lot 1: Settled (full custody chain, simulated)
         {
             "name": lot1_ref, "lot_ref": lot1_ref, "status": "Settled", "commodity": "Coffee (parchment)",
             "variety": "Red Bourbon 139", "declared_grade": "A", "quantity_kg": 3850.0,
@@ -501,7 +501,8 @@ def format_lot_detail(r):
         },
         "explorer": EXPLORER,
         "steps": [
-            {"label": l, "tx": t, "url": f"{EXPLORER}/tx/{t}" if t else None, "at": a or ""}
+            # Simulated hashes are never linked to Stellar Expert: they do not exist on-chain.
+            {"label": l, "tx": t, "url": None, "simulated": bool(t), "at": a or ""}
             for l, t, a in steps
         ],
     })
@@ -640,7 +641,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
     <div class="xt-tabs" role="list">
       {tabs_html}
     </div>
-    <span class="xt-net" title="Transactions are signed on Stellar testnet"><i aria-hidden="true"></i>Stellar testnet · demo</span>
+    <span class="xt-net xt-sim" title="Nothing on this server is sent to Stellar. Run make run-frappe for real testnet transactions."><i aria-hidden="true"></i>Offline simulation · not on-chain</span>
   </div>
 </nav>'''
 
@@ -678,7 +679,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
     <div class="xt-skeleton" aria-busy="true" aria-label="Loading"><div class="xt-skel xt-skel-title"></div><div class="xt-skel xt-skel-line"></div><div class="xt-skel-row"><div class="xt-skel xt-skel-tile"></div><div class="xt-skel xt-skel-tile"></div><div class="xt-skel xt-skel-tile"></div></div><div class="xt-skel xt-skel-card"></div></div>
   </main>
   <div class="xt-busy" id="xt-busy" hidden role="alertdialog" aria-modal="true" aria-labelledby="xt-busy-title">
-    <div class="xt-busy-card"><div class="xt-spinner" aria-hidden="true"></div><b id="xt-busy-title">Signing on Stellar</b><p id="xt-busy-text"></p></div>
+    <div class="xt-busy-card"><div class="xt-spinner" aria-hidden="true"></div><b id="xt-busy-title">Simulating (offline)</b><p id="xt-busy-text"></p></div>
   </div>
   <div class="xt-toast" id="xt-toast" hidden role="status" aria-live="polite"></div>
 </div>
@@ -762,7 +763,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
     </form>
     {results_html}
     <div class="xt-card">
-      <div class="xt-card-head"><div><h2>Recently active lots</h2><p>Live lots on Stellar testnet.</p></div></div>
+      <div class="xt-card-head"><div><h2>Recently active lots</h2><p>Sample lots in the offline simulation.</p></div></div>
       <div class="xt-table-wrap"><table class="xt-table"><thead><tr><th>Lot</th><th>Commodity</th><th>Cooperative</th><th>Status</th></tr></thead><tbody>
         {recent_rows}
       </tbody></table></div>
@@ -802,7 +803,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
             bad = (i == 1 and row["inspect_tx"] and not row["passed"])
             cls = "failed" if bad else ("done" if done else "")
             dot = "✕" if bad else ("✓" if done else str(i + 1))
-            tx_line = f'<div><a href="{s["url"]}" target="_blank" rel="noopener">{s["tx"][:10]}…{s["tx"][-6:]} ↗</a> · {s["at"][:16].replace("T", " ")}</div>' if done else '<div>Not yet</div>'
+            tx_line = f'<div><span class="xt-mono">{s["tx"][:10]}…{s["tx"][-6:]}</span> · simulated · {s["at"][:16].replace("T", " ")}</div>' if done else '<div>Not yet</div>'
             steps_html.append(f'''<li class="xt-step {cls}">
               <div class="xt-step-dot" aria-hidden="true">{dot}</div>
               <div class="xt-step-body"><b>{s["label"]}</b>{tx_line}</div>
@@ -824,13 +825,13 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
 
         verdict_class = "ok" if lot["passed"] else ("bad" if lot["inspect_tx"] else "")
         if lot["status"] == "Settled":
-            verdict_text = "✓ Trade fully settled, member split executed, and attestation committed on Stellar testnet."
+            verdict_text = "✓ Simulated: trade settled, member split and attestation recorded locally."
         elif lot["status"] == "At Port":
             verdict_text = "✓ Cargo cleared gate-in at port terminal with verified tamper-evident container seal."
         elif lot["status"] == "In Transit":
             verdict_text = "🚚 Dispatched under active carrier custody and sealed container."
         elif lot["passed"]:
-            verdict_text = "✓ An authorised inspector passed this lot on-chain; payment safely escrowed."
+            verdict_text = "✓ Simulated: inspector passed this lot; payment held in simulated escrow."
         elif lot["inspect_tx"]:
             verdict_text = f"✕ Rejected at inspection: {lot['reject_reason'] or 'Does not meet grade'}."
         else:
@@ -871,7 +872,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
             {f'<dt>Container Seal</dt><dd class="xt-mono">{lot["seal_number"]} (verified intact ✓)</dd>' if lot["seal_number"] else ''}
             {f'<dt>Port Terminal</dt><dd>{lot["port_name"]} · {lot["container_id"]}</dd>' if lot["port_name"] else ''}
             {f'<dt>Customs Ref</dt><dd class="xt-mono">{lot["customs_ref"]}</dd>' if lot["customs_ref"] else ''}
-            <dt>On-chain lot id</dt><dd class="xt-mono">{lot["chain_lot_id"]}</dd>
+            <dt>Lot id (simulated)</dt><dd class="xt-mono">{lot["chain_lot_id"]}</dd>
             <dt>Lot record sha256</dt><dd class="xt-mono">{lot["lot_digest"]}</dd>
             {f'<dt>Waybill sha256</dt><dd class="xt-mono">{lot["waybill_digest"]}</dd>' if lot["waybill_digest"] else ''}
             {f'<dt>Port receipt sha256</dt><dd class="xt-mono">{lot["port_receipt_digest"]}</dd>' if lot["port_receipt_digest"] else ''}
@@ -889,7 +890,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
           <div>{qr_svg_html}</div>
           <div>
             <h3>Share or print</h3>
-            <p>Scan to verify this lot's cryptographic custody trail on Stellar testnet.</p>
+            <p>Scan to open this lot's custody trail in this offline simulation.</p>
             <p class="xt-mono" style="margin-top:6px;overflow-wrap:anywhere">{share_url}</p>
           </div>
         </div>
@@ -951,7 +952,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
                     "grades": GRADES,
                     "prices": PRICE_RWF_PER_KG,
                     "reject_reasons": REJECT_REASONS,
-                    "network": "testnet"
+                    "network": "offline-simulation"
                 })
 
             elif method == "axk_capstone.trade_api.personas":
@@ -1244,7 +1245,7 @@ class AXKHandler(http.server.SimpleHTTPRequestHandler):
                         "attest_tx": sl["attest_tx"],
                         "settled_at": sl["settled_at"]
                     })
-                self.send_json({"events": events, "network": "testnet"})
+                self.send_json({"events": events, "network": "offline-simulation"})
 
             elif method == "axk_capstone.api.ledger_overview":
                 c.execute("SELECT COUNT(*), SUM(amount_rwf) FROM axk_chain_trade WHERE status='Settled'")

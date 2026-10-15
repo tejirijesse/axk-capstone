@@ -49,10 +49,10 @@ seed:            ## import the synthetic five-year dataset into the site
 seed-purge:      ## remove only the synthetic seed rows
 	cd $(BENCH) && bench --site $(SITE) execute axk_network.capstone_seed.run --kwargs "{'path': '$(SEED)', 'purge': True}"
 
-run:             ## start instant standalone runner (zero dependencies, http://localhost:8000)
+run:             ## offline UI simulation, no blockchain (Python only, http://localhost:8000)
 	python3 scripts/server.py
 
-run-frappe:      ## start full Frappe stack at http://axk.localhost:8000
+run-frappe:      ## full stack on Stellar testnet (http://localhost:8000)
 	./scripts/run-frappe.sh
 
 record-demo:     ## generate the full 1080p narrated walkthrough demo video

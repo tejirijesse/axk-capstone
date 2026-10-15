@@ -486,6 +486,17 @@
 
   renderLive();
   get("ledger_overview").then((d) => {
+    if (d.available === false) {
+      // Optional dataset not installed: keep the live sections, explain the missing ones.
+      ["chain-h", "hist-h"].forEach((id) => {
+        const sec = document.querySelector('section[aria-labelledby="' + id + '"]');
+        if (!sec) return;
+        const head = sec.querySelector(".cx-section-head");
+        sec.replaceChildren(head, el("div", { class: "cx-card" }, el("div", { class: "cx-empty" },
+          d.reason + " The live Stellar sections above work without it. See " + d.docs + " to add it.")));
+      });
+      return;
+    }
     state.overview = d;
     renderHistory();
     picker.replaceChildren(...d.lots.map((l) => el("option", { value: l.name, text: l.name + " · " + l.commodity + " · " + l.events + " events" })));
