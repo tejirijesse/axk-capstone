@@ -254,13 +254,10 @@ def dispatch_logistics(doc, carrier_name=None, driver_name="Jean Bosco Nzeyimana
     doc.waybill_record = canonical(waybill)
     doc.waybill_digest = sha256_hex(doc.waybill_record)
 
-    tx = None
-    try:
-        wb_id = sha256_hex("waybill:" + doc.waybill_ref)
-        _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
-                       {"trade_id": wb_id, "digest": doc.waybill_digest})
-    except Exception:
-        tx = sha256_hex("tx:dispatch:" + doc.lot_ref + ":" + str(now_datetime()))[:64]
+    # A failed attestation must fail the step: never record a hash that is not on-chain.
+    wb_id = sha256_hex("waybill:" + doc.waybill_ref)
+    _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
+                   {"trade_id": wb_id, "digest": doc.waybill_digest})
 
     doc.dispatch_tx = tx
     doc.dispatched_at = now_datetime()
@@ -299,13 +296,9 @@ def receive_port(doc, port_name=None, container_id="MSKU-9182374", customs_ref="
     doc.port_receipt_record = canonical(receipt)
     doc.port_receipt_digest = sha256_hex(doc.port_receipt_record)
 
-    tx = None
-    try:
-        port_id = sha256_hex("port:" + doc.lot_ref + ":" + str(customs))
-        _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
-                       {"trade_id": port_id, "digest": doc.port_receipt_digest})
-    except Exception:
-        tx = sha256_hex("tx:port:" + doc.lot_ref + ":" + str(now_datetime()))[:64]
+    port_id = sha256_hex("port:" + doc.lot_ref + ":" + str(customs))
+    _, tx = invoke("attestation", "attest", PERSONAS["verifier"]["identity"],
+                   {"trade_id": port_id, "digest": doc.port_receipt_digest})
 
     doc.port_tx = tx
     doc.port_received_at = now_datetime()
